@@ -23,9 +23,22 @@ repository must contain `content-manifest.json` and `pages/home.json`.
 - `npm run check` — regenerate and verify types/generated artifacts
 - `npm test` — run schema and provider tests
 - `npm run build` — create the static production site
+- `npm run build:pages` — fetch the sibling content repository and build on
+  Cloudflare Pages
 
 Local saves update the sibling content file atomically and never commit it.
 The production build contains no filesystem write endpoint.
+
+Remote CMS saves likewise write only to the content repository. They do not
+modify the frontend repository or trigger a Cloudflare Pages deployment; the
+published static site changes only after a deliberate frontend deployment.
+
+## Deployment setup
+
+Follow [GitHub and Cloudflare Pages Setup](docs/GITHUB-CLOUDFLARE-SETUP.md) for
+the repository permissions, build settings, content checkout, token policy,
+secrets, and verification checklist. The current public build does not require a
+GitHub personal access token.
 
 ## Contributing and security
 
