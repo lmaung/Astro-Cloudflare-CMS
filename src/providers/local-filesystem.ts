@@ -3,6 +3,7 @@ import { readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { pageSchema, type PageDocument } from '../domain/content';
+import { navigationSchema, siteSettingsSchema } from '../domain/globals';
 import { validateBlock } from '../components/blocks/registry';
 import {
   ProviderError,
@@ -71,6 +72,26 @@ export class LocalFilesystemProvider implements ContentReader, ContentWriter {
     validated.blocks.forEach((block) => validateBlock(block.type, block.content));
     const serialized = `${JSON.stringify(validated, null, 2)}\n`;
     const destination = this.pagePath(validated.slug);
+    const temporary = `${destination}.tmp`;
+    await writeFile(temporary, serialized, { encoding: 'utf8', flag: 'wx' });
+    await rename(temporary, destination);
+    return { data: validated, revision: revisionFor(serialized) };
+  }
+
+  async readGlobal(key: 'site-settings' | 'navigation'): Promise<Versioned<unknown>> {
+    await this.verifyManifest();
+    const source = await readFile(path.join(this.root, 'globals', `${key}.json`), 'utf8');
+    const schema = key === 'site-settings' ? siteSettingsSchema : navigationSchema;
+    return { data: schema.parse(JSON.parse(source)), revision: revisionFor(source) };
+  }
+
+  async writeGlobal(key: 'site-settings' | 'navigation', data: unknown, expectedRevision: string): Promise<Versioned<unknown>> {
+    const current = await this.readGlobal(key);
+    if (current.revision !== expectedRevision) throw new ProviderError('stale_revision', 'Global content changed after it was loaded. Reload before saving.');
+    const schema = key === 'site-settings' ? siteSettingsSchema : navigationSchema;
+    const validated = schema.parse(data);
+    const serialized = `${JSON.stringify(validated, null, 2)}\n`;
+    const destination = path.join(this.root, 'globals', `${key}.json`);
     const temporary = `${destination}.tmp`;
     await writeFile(temporary, serialized, { encoding: 'utf8', flag: 'wx' });
     await rename(temporary, destination);

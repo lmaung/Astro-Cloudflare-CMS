@@ -3,6 +3,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { validateBlock } from '../src/components/blocks/registry';
 import { pageSchema } from '../src/domain/content';
+import { navigationSchema, siteSettingsSchema } from '../src/domain/globals';
 
 type ValidationArtifact = {
   schemaVersion: string;
@@ -28,6 +29,9 @@ async function validate() {
   const pagesDirectory = path.join(contentRoot, 'pages');
   const pageFiles = (await readdir(pagesDirectory)).filter((file) => file.endsWith('.json')).sort();
   if (pageFiles.length === 0) throw new Error('The content repository must contain at least one pages/*.json file.');
+
+  siteSettingsSchema.parse(await readJson(path.join(contentRoot, 'globals', 'site-settings.json')));
+  navigationSchema.parse(await readJson(path.join(contentRoot, 'globals', 'navigation.json')));
 
   for (const file of pageFiles) {
     const source = await readFile(path.join(pagesDirectory, file), 'utf8');

@@ -4,6 +4,7 @@ import { ProviderError } from './contracts';
 import { LocalFilesystemProvider } from './local-filesystem';
 
 const endpoint = '/api/admin/content/home';
+const globalPattern = /^\/api\/admin\/globals\/(site-settings|navigation)$/;
 
 function send(response: import('node:http').ServerResponse, status: number, body: unknown): void {
   response.statusCode = status;
@@ -35,8 +36,19 @@ export function localContentPlugin(): Plugin {
       const provider = new LocalFilesystemProvider(contentRoot);
 
       server.middlewares.use(async (request, response, next) => {
-        if (request.url !== endpoint) return next();
+        const globalMatch = request.url?.match(globalPattern);
+        if (request.url !== endpoint && !globalMatch) return next();
         try {
+          if (globalMatch) {
+            const key = globalMatch[1] as 'site-settings' | 'navigation';
+            if (request.method === 'GET') return send(response, 200, { ...(await provider.readGlobal(key)), mode: 'local' });
+            if (request.method === 'PUT') {
+              const payload = (await readJson(request)) as { data?: unknown; expectedRevision?: unknown };
+              if (typeof payload.expectedRevision !== 'string') return send(response, 400, { code: 'invalid_content', message: 'Expected revision is required.' });
+              return send(response, 200, { ...(await provider.writeGlobal(key, payload.data, payload.expectedRevision)), mode: 'local' });
+            }
+            return send(response, 405, { code: 'unavailable', message: 'Method not allowed.' });
+          }
           if (request.method === 'GET') {
             send(response, 200, { ...(await provider.readPage('home')), mode: 'local' });
             return;

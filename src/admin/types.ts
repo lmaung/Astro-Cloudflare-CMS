@@ -12,6 +12,7 @@ export type CatalogBlock = {
 export type Catalog = {
   generated: true;
   blocks: CatalogBlock[];
+  globals: Array<{ key: 'site-settings' | 'navigation'; title: string; description: string; schema: RJSFSchema }>;
 };
 
 export type EditorMode = 'local' | 'remote';
@@ -22,6 +23,8 @@ export type PullRequestSubmission = {
   url: string;
   branch: string;
 };
+
+export type GlobalResponse = { data: unknown; revision: string; mode: EditorMode; submission?: PullRequestSubmission };
 
 export type PageResponse = {
   data: PageDocument;

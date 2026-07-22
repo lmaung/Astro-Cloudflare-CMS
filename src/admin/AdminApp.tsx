@@ -6,6 +6,7 @@ import catalogSource from '../../generated/schemas/component-catalog.json';
 import type { BlockEnvelope, PageDocument } from '../domain/content';
 import { loadPage, savePage } from './local-gateway';
 import type { Catalog, EditorMode, PullRequestSubmission } from './types';
+import { GlobalEditor } from './GlobalEditor';
 
 const catalog = catalogSource as Catalog;
 
@@ -29,6 +30,7 @@ export default function AdminApp() {
   const [changeId, setChangeId] = useState(() => crypto.randomUUID());
   const [submission, setSubmission] = useState<PullRequestSubmission | null>(null);
   const [status, setStatus] = useState<Status>({ kind: 'loading', message: 'Loading content…' });
+  const [section, setSection] = useState<'page' | 'site-settings' | 'navigation'>('page');
 
   useEffect(() => {
     loadPage()
@@ -147,6 +149,11 @@ export default function AdminApp() {
     );
   }
 
+  const globalDefinition = catalog.globals.find((item) => item.key === section);
+  if (globalDefinition) {
+    return <div className="admin-shell"><header className="admin-header"><div><a className="admin-brand" href="/">Astro CMS</a><p>Global content workspace</p></div><a className="button button--secondary" href="/" target="_blank" rel="noreferrer">View site</a></header><nav className="admin-sections" aria-label="Content areas"><button onClick={() => setSection('page')}>Page</button>{catalog.globals.map((item) => <button key={item.key} aria-current={section === item.key ? 'page' : undefined} onClick={() => setSection(item.key)}>{item.title}</button>)}</nav><GlobalEditor definition={globalDefinition} /></div>;
+  }
+
   return (
     <div className="admin-shell">
       <header className="admin-header">
@@ -161,6 +168,8 @@ export default function AdminApp() {
           </button>
         </div>
       </header>
+
+      <nav className="admin-sections" aria-label="Content areas"><button aria-current="page">Page</button>{catalog.globals.map((item) => <button key={item.key} onClick={() => setSection(item.key)}>{item.title}</button>)}</nav>
 
       <div className="admin-status" data-kind={status.kind} role={status.kind === 'error' ? 'alert' : 'status'} aria-live="polite">
         <span>{status.message}</span>

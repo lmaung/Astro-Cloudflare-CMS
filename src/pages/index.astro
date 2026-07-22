@@ -1,19 +1,23 @@
 ---
 import BlockRenderer from '../components/blocks/BlockRenderer.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { loadHomePage } from '../services/page-loader';
+import { loadHomePage, loadNavigation, loadSiteSettings } from '../services/page-loader';
 
-const page = await loadHomePage();
+const [page, settings, navigation] = await Promise.all([loadHomePage(), loadSiteSettings(), loadNavigation()]);
+const title = `${page.title} · ${settings.defaultSeo.titleSuffix}`;
 ---
 
-<BaseLayout title={page.title}>
+<BaseLayout title={title} description={settings.defaultSeo.description}>
   <header class="site-header">
     <div class="site-shell site-header__inner">
-      <a class="site-brand" href="/">Astro CMS</a>
-      <a class="site-header__link" href="/admin">Open local editor</a>
+      <a class="site-brand" href="/" aria-label={`${settings.siteName} home`}>{settings.siteName}</a>
+      <nav class="site-navigation" aria-label="Primary navigation">
+        <ul>{navigation.primary.map((item) => <li><a href={item.href}>{item.label}</a></li>)}</ul>
+      </nav>
     </div>
   </header>
   <main id="main-content">
     {page.blocks.map((block) => <BlockRenderer block={block} />)}
   </main>
+  <footer class="site-footer"><div class="site-shell"><p>{settings.footer.copyright}</p><p>{settings.tagline}</p></div></footer>
 </BaseLayout>
