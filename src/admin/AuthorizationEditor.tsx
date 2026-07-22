@@ -17,7 +17,7 @@ export function AuthorizationEditor() {
   const [revision, setRevision] = useState('');
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('Loading private role assignments…');
+  const [message, setMessage] = useState('Loading Git-backed role assignments…');
   const [error, setError] = useState(false);
   const assignableRoles = useMemo(
     () => directory?.roles.filter((role) => role.key !== 'public' && role.key !== 'authenticated') ?? [],
@@ -97,7 +97,7 @@ export function AuthorizationEditor() {
     <section className="admin-editor authorization-editor" aria-labelledby="authorization-heading">
       <div className="admin-editor__heading">
         <div>
-          <p className="admin-kicker">Private access directory</p>
+          <p className="admin-kicker">Git-backed access directory</p>
           <h1 id="authorization-heading">Users and roles</h1>
           <p>
             Define reusable roles and assign them to authenticated email identities. Public and authenticated roles are
