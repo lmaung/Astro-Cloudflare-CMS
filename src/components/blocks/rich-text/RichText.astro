@@ -1,0 +1,16 @@
+---
+import type { RichTextContent } from './rich-text.schema';
+
+interface Props {
+  content: RichTextContent;
+}
+
+const { content } = Astro.props;
+---
+
+<section class="site-section" id="content">
+  <div class="site-shell site-prose">
+    {content.heading && <h2>{content.heading}</h2>}
+    {content.paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+  </div>
+</section>

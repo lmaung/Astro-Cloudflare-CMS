@@ -1,0 +1,10 @@
+---
+import AdminApp from '../admin/AdminApp';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Content editor · Astro CMS" admin>
+  <main id="main-content">
+    <AdminApp client:load />
+  </main>
+</BaseLayout>

@@ -1,0 +1,20 @@
+---
+import type { HeroContent } from './hero.schema';
+
+interface Props {
+  content: HeroContent;
+}
+
+const { content } = Astro.props;
+---
+
+<section class="site-hero" aria-labelledby="hero-heading">
+  <div class="site-shell site-hero__inner">
+    {content.eyebrow && <p class="site-eyebrow">{content.eyebrow}</p>}
+    <h1 id="hero-heading">{content.heading}</h1>
+    <p class="site-hero__body">{content.body}</p>
+    {content.action && (
+      <a class="site-action" href={content.action.href}>{content.action.label}</a>
+    )}
+  </div>
+</section>

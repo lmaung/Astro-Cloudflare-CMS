@@ -1,0 +1,104 @@
+{
+  "generated": true,
+  "blocks": [
+    {
+      "type": "core/hero",
+      "version": 1,
+      "editor": {
+        "title": "Hero",
+        "description": "Primary page introduction with an optional action."
+      },
+      "defaults": {
+        "eyebrow": "Astro CMS platform",
+        "heading": "A fast, maintainable foundation for content-driven sites",
+        "body": "Structured content, accessible components, and a Git-backed publishing workflow.",
+        "action": {
+          "label": "Explore the platform",
+          "href": "#content"
+        }
+      },
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "eyebrow": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "heading": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 320
+          },
+          "action": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              "href": {
+                "type": "string",
+                "pattern": "^(?:\\/|#)"
+              }
+            },
+            "required": [
+              "label",
+              "href"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "heading",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "core/rich-text",
+      "version": 1,
+      "editor": {
+        "title": "Rich text",
+        "description": "A heading and readable text paragraphs."
+      },
+      "defaults": {
+        "heading": "Content without presentation logic",
+        "paragraphs": [
+          "Pages are ordered collections of validated blocks. The frontend owns rendering while the content repository stays data-only."
+        ]
+      },
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "heading": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "paragraphs": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            }
+          }
+        },
+        "required": [
+          "paragraphs"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

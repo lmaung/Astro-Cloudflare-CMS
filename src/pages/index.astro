@@ -1,0 +1,19 @@
+---
+import BlockRenderer from '../components/blocks/BlockRenderer.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { loadHomePage } from '../services/page-loader';
+
+const page = await loadHomePage();
+---
+
+<BaseLayout title={page.title}>
+  <header class="site-header">
+    <div class="site-shell site-header__inner">
+      <a class="site-brand" href="/">Astro CMS</a>
+      <a class="site-header__link" href="/admin">Open local editor</a>
+    </div>
+  </header>
+  <main id="main-content">
+    {page.blocks.map((block) => <BlockRenderer block={block} />)}
+  </main>
+</BaseLayout>

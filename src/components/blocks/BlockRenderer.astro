@@ -1,0 +1,22 @@
+---
+import type { BlockEnvelope } from '../../domain/content';
+import Hero from './hero/Hero.astro';
+import RichText from './rich-text/RichText.astro';
+import { heroContentSchema } from './hero/hero.schema';
+import { richTextContentSchema } from './rich-text/rich-text.schema';
+
+interface Props {
+  block: BlockEnvelope;
+}
+
+const { block } = Astro.props;
+const heroContent = block.type === 'core/hero' ? heroContentSchema.parse(block.content) : null;
+const richTextContent = block.type === 'core/rich-text' ? richTextContentSchema.parse(block.content) : null;
+
+if (!heroContent && !richTextContent) {
+  throw new Error(`Unknown block type: ${block.type}`);
+}
+---
+
+{block.status !== 'hidden' && heroContent && <Hero content={heroContent} />}
+{block.status !== 'hidden' && richTextContent && <RichText content={richTextContent} />}
