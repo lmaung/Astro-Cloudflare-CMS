@@ -41,25 +41,25 @@ GitHub location:
 The GitHub App supplies Cloudflare's source/build integration. A personal access
 token is not required for this connection.
 
-### CMS content GitHub App
+### CMS content access
 
-The CMS uses a separate GitHub App owned by the site operator. This is not the
-Cloudflare Workers and Pages App above.
+The protected CMS API uses a fine-grained personal access token owned by the
+site operator. This credential is separate from the Cloudflare Workers and
+Pages GitHub App above and is used only for the content repository.
 
-Create a GitHub App with:
+Create the token with:
 
+- repository access: **Only select repositories**;
+- selected repository: `Astro-Cloudflare-CMS-content` only;
 - repository permissions:
   - **Contents: Read and write**;
   - **Pull requests: Read and write**;
   - **Metadata: Read-only** (automatic);
-- installation scope: only `Astro-Cloudflare-CMS-content`;
-- webhook: disabled for the current implementation;
-- user authorization: not required.
+- an expiration date appropriate for the operating environment.
 
-Generate a private key after creating the App, record the App ID and installation
-ID, and install the App only on the content repository. The Pages Function mints
-a repository-scoped installation token for each operation; the short-lived token
-is never sent to the browser or stored in configuration.
+The Pages Function reads this encrypted token from Cloudflare, uses it only for
+GitHub API requests, and never sends it to the browser. Do not grant this token
+access to the frontend repository.
 
 ### Recommended repository protections
 
@@ -75,20 +75,15 @@ workflow changes may become impossible to merge.
 
 ## 2. GitHub token policy
 
-### Current deployment: no PAT required
+### Current deployment
 
-The repositories are public. Cloudflare can clone the content repository for a
-build without authentication, and its installed GitHub App handles the frontend
-source integration. Do not create a PAT merely for Pages auto-deployment.
+The public build does not require a token: Cloudflare can clone the public
+content repository during an intentional build. The fine-grained PAT exists
+only for the protected remote editor's GitHub API operations.
 
-If the two `astro-cms` fine-grained tokens shown during initial setup have no
-expiration and have never been used, delete them. They are not needed for the
-current build.
-
-The remote editor does not support or require a PAT. Do not add one to
-Cloudflare. The CMS GitHub App must never be installed on the frontend
-repository; the CMS edits content and has no frontend write or deployment
-capability.
+Use a dedicated token with the least privileges described above. Store it only
+as the encrypted Cloudflare secret `GITHUB_TOKEN`. Never expose it as plaintext,
+put it in a repository, or grant it access to the frontend repository.
 
 ## 3. Create the Cloudflare Pages project
 
@@ -156,14 +151,50 @@ Do not copy content into the frontend repository merely to trigger a build.
 
 ## 5. Protect the admin with Cloudflare Access
 
-Before configuring GitHub write credentials, create a Cloudflare Access
-self-hosted application that protects both:
+Before configuring the GitHub write credential, create a Cloudflare Access
+self-hosted application:
+
+1. In Cloudflare, open **Zero Trust > Access controls > Applications**.
+2. Select **Create new application**.
+3. Select **Self-hosted and private**, then **Add public hostname**.
+4. Select the custom hostname and add the path `/admin*`.
+5. Add a second public hostname entry for the same hostname with the path
+   `/api/admin/*`.
+6. Add an **Allow** policy containing only the intended internal identities.
+7. Save the application.
+8. Test in a signed-out browser. Both paths must redirect to Cloudflare Access;
+   an unauthenticated `200` from `/admin/` or application JSON from
+   `/api/admin/content/home` means the paths are not protected correctly.
+
+The two protected paths are:
 
 - `/admin*`
 - `/api/admin/*`
 
-Allow only the intended internal identities. Copy these values from the Access
-application:
+### Find the Access team domain
+
+1. Open **Zero Trust > Settings**.
+2. Find the account's team name and team domain.
+3. Enter the complete HTTPS URL as `CLOUDFLARE_ACCESS_TEAM_DOMAIN`:
+
+   ```text
+   https://<team-name>.cloudflareaccess.com
+   ```
+
+Do not enter the website hostname or omit `https://`.
+
+### Find the Access audience tag
+
+1. Open **Zero Trust > Access controls > Applications**.
+2. Open the self-hosted application protecting the admin.
+3. Open its additional/application settings.
+4. Copy **Application Audience (AUD) Tag** into
+   `CLOUDFLARE_ACCESS_AUD`.
+
+The AUD tag belongs to the Access application, not the Cloudflare account ID,
+zone ID, or Pages project ID.
+
+Add these Access values to the Pages project:
 
 | Variable | Cloudflare type | Value |
 |---|---|---|
@@ -174,18 +205,58 @@ The Pages Function independently verifies the `Cf-Access-Jwt-Assertion`
 signature, issuer, and audience. Missing or invalid Access configuration fails
 closed; it does not fall back to an unprotected editor.
 
+### Authenticated testing
+
+An operator or test assistant can verify the protected editor only from the
+browser session that completed the Access login. Signing in through a different
+browser or private session does not share the Access cookie.
+
+For an assisted test:
+
+1. Open the protected admin in the designated test browser.
+2. The authorized operator completes the Access login personally; passwords and
+   one-time codes are never shared or recorded.
+3. Verify content loading and editor behavior in that authenticated session.
+4. Treat **Create content PR** as a state-changing test. Confirm it separately
+   before selecting it because it creates a real content branch and draft pull
+   request.
+
 ## 6. Configure the remote editor
 
-In the Pages project, open **Settings > Variables and Secrets** and add:
+### Store the fine-grained token
+
+1. In the Pages project, open **Settings > Variables and Secrets > Add**.
+2. Name the variable `GITHUB_TOKEN`.
+3. Paste the fine-grained PAT and select **Encrypt** before saving.
+4. Configure the secret separately for production and any trusted preview
+   environment that needs remote writes.
+5. Redeploy after adding or rotating the secret.
+
+Never paste the token into Git, documentation, screenshots, logs, chat, or the
+Personal Context Vault. Revoke and replace it immediately if it may have been
+exposed.
+
+### Complete Cloudflare variable inventory
+
+In the Pages project, open **Settings > Variables and Secrets** and add all of
+the following:
 
 | Variable | Cloudflare type | Value |
 |---|---|---|
-| `GITHUB_APP_ID` | Plaintext | CMS GitHub App ID |
-| `GITHUB_APP_INSTALLATION_ID` | Plaintext | Installation ID for the content repository |
-| `GITHUB_APP_PRIVATE_KEY` | **Encrypted secret** | Complete PEM private key |
+| `CLOUDFLARE_ACCESS_TEAM_DOMAIN` | Plaintext | Full `https://<team>.cloudflareaccess.com` URL from Zero Trust settings |
+| `CLOUDFLARE_ACCESS_AUD` | Plaintext | AUD tag from the protected Access application |
+| `GITHUB_TOKEN` | **Encrypted secret** | Fine-grained PAT scoped only to the content repository |
 | `GITHUB_CONTENT_OWNER` | Plaintext | `lmaung` |
 | `GITHUB_CONTENT_REPO` | Plaintext | `Astro-Cloudflare-CMS-content` |
 | `GITHUB_CONTENT_BRANCH` | Plaintext | `main` |
+
+The three `GITHUB_CONTENT_*` values are fixed deployment configuration rather
+than generated credentials:
+
+- `GITHUB_CONTENT_OWNER` is the GitHub account that owns the content repository.
+- `GITHUB_CONTENT_REPO` is the exact repository name, preserving capitalization.
+- `GITHUB_CONTENT_BRANCH` is the branch the editor reads and targets with draft
+  pull requests.
 
 Then:
 
@@ -219,10 +290,10 @@ After configuration, verify:
 - [ ] The deployed Home page contains content from the content repository.
 - [ ] A frontend pull request receives a Pages preview URL.
 - [ ] `/admin*` and `/api/admin/*` require Cloudflare Access.
-- [ ] The CMS GitHub App is installed only on the content repository.
+- [ ] The CMS token can access only the content repository.
 - [ ] A CMS save creates a draft pull request in the content repository.
 - [ ] A CMS content save does not create a frontend commit or Pages deployment.
-- [ ] No GitHub PAT is present in Cloudflare or the repositories.
+- [ ] The GitHub PAT is encrypted in Cloudflare and absent from both repositories.
 - [ ] Production admin/API routes are protected by Cloudflare Access before
       remote writes are enabled.
 
@@ -248,9 +319,8 @@ only when the updated content should be published.
 
 ### Editor says it is not configured
 
-Confirm all Access and GitHub App variables in sections 5 and 6 are present in
-the active Pages environment, then redeploy. Do not replace missing GitHub App
-configuration with a PAT.
+Confirm all Access and GitHub variables in sections 5 and 6 are present in the
+active Pages environment, then redeploy.
 
 ### Editor reports authorization denied
 
@@ -278,9 +348,11 @@ not sufficient.
   https://developers.cloudflare.com/pages/functions/bindings/
 - Cloudflare Access JWT validation:
   https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/
+- Cloudflare Access application paths:
+  https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/
+- Cloudflare Zero Trust team domain:
+  https://developers.cloudflare.com/cloudflare-one/faq/getting-started-faq/
 - GitHub fine-grained PAT management:
   https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
 - GitHub fine-grained PAT permissions:
   https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens
-- GitHub App best practices:
-  https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/best-practices-for-creating-a-github-app

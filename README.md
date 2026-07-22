@@ -29,18 +29,18 @@ repository must contain `content-manifest.json` and `pages/home.json`.
 Local saves update the sibling content file atomically and never commit it.
 The production build contains no filesystem write endpoint.
 
-Remote CMS submissions use a Cloudflare Access-protected Pages Function and
-short-lived GitHub App installation token to create a draft pull request only in
-the content repository. They do not modify the frontend repository or trigger a
-Cloudflare Pages deployment; the published static site changes only after a
+Remote CMS submissions use a Cloudflare Access-protected Pages Function and a
+fine-grained GitHub token scoped only to the content repository to create a
+draft pull request there. They do not modify the frontend repository or trigger
+a Cloudflare Pages deployment; the published static site changes only after a
 deliberate frontend deployment.
 
 ## Deployment setup
 
 Follow [GitHub and Cloudflare Pages Setup](docs/GITHUB-CLOUDFLARE-SETUP.md) for
 the repository permissions, build settings, content checkout, token policy,
-secrets, and verification checklist. The current public build does not require a
-GitHub personal access token.
+secrets, and verification checklist. The token is used only by the protected
+remote editor; the public build does not require it.
 
 ## Contributing and security
 

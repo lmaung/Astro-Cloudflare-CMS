@@ -1,7 +1,7 @@
 import { verifyCloudflareAccess, requireSameOrigin, AuthorizationError } from '../../../lib/access';
 import { ConfigurationError, readAdminConfig, type AdminEnv } from '../../../lib/config';
 import { readPage, submitPagePullRequest, ContentRequestError } from '../../../lib/content-repository';
-import { createGitHubClient, createInstallationToken } from '../../../lib/github-app';
+import { createGitHubClient } from '../../../lib/github';
 import { json, type PagesHandler } from '../../../lib/runtime';
 
 function statusFor(error: ContentRequestError): number {
@@ -18,8 +18,7 @@ export const onRequest: PagesHandler<AdminEnv> = async ({ request, env, params }
     const slug = params.slug;
     if (typeof slug !== 'string') return json({ code: 'unsafe_path', message: 'A single page slug is required.' }, 400);
 
-    const token = await createInstallationToken(config);
-    const client = createGitHubClient(config, token);
+    const client = createGitHubClient(config);
     if (request.method === 'GET') return json(await readPage(client, config, slug));
     if (request.method === 'PUT') {
       requireSameOrigin(request);

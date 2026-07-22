@@ -1,4 +1,3 @@
-import { importPKCS8, SignJWT } from 'jose';
 import type { AdminConfig } from './config';
 
 const githubApi = 'https://api.github.com';
@@ -31,36 +30,13 @@ async function githubRequest<T>(path: string, token: string, init: RequestInit =
   return (await response.json()) as T;
 }
 
-export async function createInstallationToken(config: AdminConfig): Promise<string> {
-  const key = await importPKCS8(config.githubPrivateKey, 'RS256');
-  const now = Math.floor(Date.now() / 1000);
-  const jwt = await new SignJWT({})
-    .setProtectedHeader({ alg: 'RS256' })
-    .setIssuer(config.githubAppId)
-    .setIssuedAt(now - 60)
-    .setExpirationTime(now + 9 * 60)
-    .sign(key);
-  const result = await githubRequest<{ token: string }>(
-    `/app/installations/${encodeURIComponent(config.githubInstallationId)}/access_tokens`,
-    jwt,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        repositories: [config.contentRepo],
-        permissions: { contents: 'write', pull_requests: 'write' },
-      }),
-    },
-  );
-  return result.token;
-}
-
 export type GitHubClient = ReturnType<typeof createGitHubClient>;
 
-export function createGitHubClient(config: AdminConfig, token: string) {
+export function createGitHubClient(config: AdminConfig) {
   const repositoryPath = `/repos/${encodeURIComponent(config.contentOwner)}/${encodeURIComponent(config.contentRepo)}`;
   return {
     request<T>(path: string, init?: RequestInit) {
-      return githubRequest<T>(`${repositoryPath}${path}`, token, init);
+      return githubRequest<T>(`${repositoryPath}${path}`, config.githubToken, init);
     },
   };
 }

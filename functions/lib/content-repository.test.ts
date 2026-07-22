@@ -2,14 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { heroDefinition } from '../../src/components/blocks/hero/hero.definition';
 import type { AdminConfig } from './config';
 import { ContentRequestError, submitPagePullRequest } from './content-repository';
-import { GitHubApiError, type GitHubClient } from './github-app';
+import { GitHubApiError, type GitHubClient } from './github';
 
 const config: AdminConfig = {
   accessTeamDomain: 'https://example.cloudflareaccess.com',
   accessAudience: 'audience',
-  githubAppId: '123',
-  githubInstallationId: '456',
-  githubPrivateKey: 'private-key',
+  githubToken: 'github_pat_example',
   contentOwner: 'owner',
   contentRepo: 'content-only',
   contentBranch: 'main',

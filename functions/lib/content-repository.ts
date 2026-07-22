@@ -1,7 +1,7 @@
 import { pageSchema, type PageDocument } from '../../src/domain/content';
 import { validateBlock } from '../../src/components/blocks/registry';
 import type { AdminConfig } from './config';
-import { GitHubApiError, type GitHubClient } from './github-app';
+import { GitHubApiError, type GitHubClient } from './github';
 
 type GitHubContent = { content: string; encoding: string; sha: string };
 type GitReference = { object: { sha: string } };

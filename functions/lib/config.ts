@@ -1,9 +1,7 @@
 export type AdminEnv = {
   CLOUDFLARE_ACCESS_TEAM_DOMAIN?: string;
   CLOUDFLARE_ACCESS_AUD?: string;
-  GITHUB_APP_ID?: string;
-  GITHUB_APP_INSTALLATION_ID?: string;
-  GITHUB_APP_PRIVATE_KEY?: string;
+  GITHUB_TOKEN?: string;
   GITHUB_CONTENT_OWNER?: string;
   GITHUB_CONTENT_REPO?: string;
   GITHUB_CONTENT_BRANCH?: string;
@@ -12,9 +10,7 @@ export type AdminEnv = {
 export type AdminConfig = {
   accessTeamDomain: string;
   accessAudience: string;
-  githubAppId: string;
-  githubInstallationId: string;
-  githubPrivateKey: string;
+  githubToken: string;
   contentOwner: string;
   contentRepo: string;
   contentBranch: string;
@@ -37,9 +33,7 @@ export function readAdminConfig(env: AdminEnv): AdminConfig {
   return {
     accessTeamDomain,
     accessAudience: required(env, 'CLOUDFLARE_ACCESS_AUD'),
-    githubAppId: required(env, 'GITHUB_APP_ID'),
-    githubInstallationId: required(env, 'GITHUB_APP_INSTALLATION_ID'),
-    githubPrivateKey: required(env, 'GITHUB_APP_PRIVATE_KEY').replace(/\\n/g, '\n'),
+    githubToken: required(env, 'GITHUB_TOKEN'),
     contentOwner: required(env, 'GITHUB_CONTENT_OWNER'),
     contentRepo: required(env, 'GITHUB_CONTENT_REPO'),
     contentBranch: env.GITHUB_CONTENT_BRANCH?.trim() || 'main',
