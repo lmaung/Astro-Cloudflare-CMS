@@ -1,6 +1,6 @@
 import { verifyCloudflareAccess, requireSameOrigin, AuthorizationError } from '../../../lib/access';
 import { ConfigurationError, readAdminConfig, type AdminEnv } from '../../../lib/config';
-import { readPage, submitPagePullRequest, ContentRequestError } from '../../../lib/content-repository';
+import { readPage, savePageDirect, ContentRequestError } from '../../../lib/content-repository';
 import { createGitHubClient } from '../../../lib/github';
 import { json, type PagesHandler } from '../../../lib/runtime';
 
@@ -38,7 +38,7 @@ export const onRequest: PagesHandler<AdminEnv> = async ({ request, env, params }
         return json({ code: 'invalid_content', message: 'Expected revision and change identifier are required.' }, 400);
       }
       return json(
-        await submitPagePullRequest(client, config, slug, {
+        await savePageDirect(client, config, slug, {
           data: input.data,
           expectedRevision: input.expectedRevision,
           changeId: input.changeId,

@@ -16,8 +16,22 @@ const title = `${page.title} · ${settings.defaultSeo.titleSuffix}`;
       </nav>
     </div>
   </header>
-  <main id="main-content">
+  <main id="main-content" data-runtime-content>
     {page.blocks.map((block) => <BlockRenderer block={block} />)}
   </main>
   <footer class="site-footer"><div class="site-shell"><p>{settings.footer.copyright}</p><p>{settings.tagline}</p></div></footer>
+  <script>
+    type RuntimeLink = { label: string; href: string };
+    type RuntimeBlock = { status: string; type: string; content: Record<string, any> };
+    type RuntimeSnapshot = { page: { title: string; blocks: RuntimeBlock[] }; settings: { siteName: string; tagline: string; defaultSeo: { titleSuffix: string; description: string }; footer: { copyright: string } }; navigation: { primary: RuntimeLink[] } };
+    const safeHref = (value: unknown): value is string => typeof value === 'string' && (value.startsWith('/') || value.startsWith('#') || value.startsWith('https://'));
+    fetch('/api/content/snapshot', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<RuntimeSnapshot> : Promise.reject()).then(({ page, settings, navigation }) => {
+      const brand = document.querySelector('.site-brand'); if (brand) { brand.textContent = settings.siteName; brand.setAttribute('aria-label', `${settings.siteName} home`); }
+      document.title = `${page.title} · ${settings.defaultSeo.titleSuffix}`;
+      const description = document.querySelector('meta[name="description"]'); if (description) description.setAttribute('content', settings.defaultSeo.description);
+      const list = document.querySelector('.site-navigation ul'); if (list) { list.replaceChildren(...navigation.primary.filter((item) => safeHref(item.href)).map((item) => { const li = document.createElement('li'); const link = document.createElement('a'); link.textContent = item.label; link.href = item.href; li.append(link); return li; })); }
+      const main = document.querySelector('[data-runtime-content]'); if (main) { const blocks = page.blocks.filter((block) => block.status === 'active').map((block) => { if (block.type === 'core/hero') { const section = document.createElement('section'); section.className = 'site-hero'; section.setAttribute('aria-labelledby', 'hero-heading'); const inner = document.createElement('div'); inner.className = 'site-shell site-hero__inner'; const eyebrow = document.createElement('p'); eyebrow.className = 'site-eyebrow'; eyebrow.textContent = block.content.eyebrow || ''; const heading = document.createElement('h1'); heading.id = 'hero-heading'; heading.textContent = block.content.heading; const body = document.createElement('p'); body.className = 'site-hero__body'; body.textContent = block.content.body; inner.append(eyebrow, heading, body); if (block.content.action && safeHref(block.content.action.href)) { const action = document.createElement('a'); action.className = 'site-action'; action.href = block.content.action.href; action.textContent = block.content.action.label; inner.append(action); } section.append(inner); return section; } if (block.type === 'core/rich-text') { const section = document.createElement('section'); section.className = 'site-section'; section.id = 'content'; const inner = document.createElement('div'); inner.className = 'site-shell site-prose'; const heading = document.createElement('h2'); heading.textContent = block.content.heading; inner.append(heading, ...block.content.paragraphs.map((text: string) => { const p = document.createElement('p'); p.textContent = text; return p; })); section.append(inner); return section; } return null; }).filter((block): block is HTMLElement => block !== null); main.replaceChildren(...blocks); }
+      const footer = document.querySelector('.site-footer .site-shell'); if (footer) { const copyright = document.createElement('p'); copyright.textContent = settings.footer.copyright; const tagline = document.createElement('p'); tagline.textContent = settings.tagline; footer.replaceChildren(copyright, tagline); }
+    }).catch(() => { /* Keep the validated static fallback when runtime content is unavailable. */ });
+  </script>
 </BaseLayout>

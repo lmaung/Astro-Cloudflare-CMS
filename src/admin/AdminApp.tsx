@@ -44,7 +44,7 @@ export default function AdminApp() {
           message:
             result.mode === 'local'
               ? 'Local content loaded. Changes are not committed automatically.'
-              : 'Published content loaded. Submissions create a content pull request and do not deploy the site.',
+              : 'Latest content loaded. Saves publish data immediately without deploying the frontend.',
         });
       })
       .catch((error: Error) => setStatus({ kind: 'error', message: error.message }));
@@ -117,7 +117,7 @@ export default function AdminApp() {
     if (!page || !dirty) return;
     setStatus({
       kind: 'saving',
-      message: mode === 'remote' ? 'Creating a content pull request…' : 'Saving to the sibling content repository…',
+      message: mode === 'remote' ? 'Validating and saving content…' : 'Saving to the sibling content repository…',
     });
     try {
       const result = await savePage(page, revision, changeId);
@@ -131,7 +131,7 @@ export default function AdminApp() {
         kind: 'saved',
         message:
           result.mode === 'remote'
-            ? 'Content pull request created. The frontend was not changed or deployed.'
+            ? 'Content saved. Refresh the website to load the latest data; no deployment was triggered.'
             : 'Saved locally. No Git commit was created.',
       });
     } catch (error) {
@@ -164,7 +164,7 @@ export default function AdminApp() {
         <div className="admin-header__actions">
           <a className="button button--secondary" href="/" target="_blank" rel="noreferrer">View site</a>
           <button className="button button--primary" type="button" onClick={save} disabled={!dirty || status.kind === 'saving'}>
-            {status.kind === 'saving' ? 'Working…' : mode === 'remote' ? 'Create content PR' : 'Save locally'}
+            {status.kind === 'saving' ? 'Working…' : mode === 'remote' ? 'Save content' : 'Save locally'}
           </button>
         </div>
       </header>
@@ -173,7 +173,7 @@ export default function AdminApp() {
 
       <div className="admin-status" data-kind={status.kind} role={status.kind === 'error' ? 'alert' : 'status'} aria-live="polite">
         <span>{status.message}</span>
-        {submission && <a href={submission.url} target="_blank" rel="noreferrer">View pull request #{submission.number}</a>}
+        {submission?.kind === 'pull_request' && submission.url && <a href={submission.url} target="_blank" rel="noreferrer">View pull request #{submission.number}</a>}
       </div>
 
       <div className="admin-workspace">

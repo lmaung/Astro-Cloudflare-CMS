@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { heroDefinition } from '../../src/components/blocks/hero/hero.definition';
 import type { AdminConfig } from './config';
-import { ContentRequestError, submitPagePullRequest } from './content-repository';
+import { ContentRequestError, savePageDirect, submitPagePullRequest } from './content-repository';
 import { GitHubApiError, type GitHubClient } from './github';
 
 const config: AdminConfig = {
@@ -25,6 +25,25 @@ function encodedPage() {
 }
 
 describe('content pull request submission', () => {
+  it('validates and atomically saves page plus proof directly to main', async () => {
+    const calls: Array<{ path: string; init: RequestInit | undefined }> = []; let reads = 0; let blobs = 0;
+    const request = vi.fn(async (path: string, init?: RequestInit) => {
+      calls.push({ path, init });
+      if (path.startsWith('/contents/')) return { content: encodedPage(), encoding: 'base64', sha: ++reads === 1 ? 'blob-old' : 'blob-new' };
+      if (path === '/git/ref/heads/main') return { object: { sha: 'commit-main' } };
+      if (path === '/git/commits/commit-main') return { tree: { sha: 'tree-main' } };
+      if (path === '/git/blobs') return { sha: `blob-${++blobs}` };
+      if (path === '/git/trees') return { sha: 'tree-new' };
+      if (path === '/git/commits') return { sha: 'commit-new' };
+      if (path === '/git/refs/heads/main') return {};
+      throw new Error(`Unexpected request: ${path}`);
+    });
+    const result = await savePageDirect({ request } as GitHubClient, config, 'home', { data: page, expectedRevision: 'blob-old', changeId: '12345678-1234-4123-8123-123456789abc' });
+    expect(result.submission.kind).toBe('direct_save');
+    expect(calls.filter((call) => call.path === '/git/blobs')).toHaveLength(2);
+    expect(calls.find((call) => call.path === '/git/refs/heads/main')?.init?.method).toBe('PATCH');
+    expect(calls.some((call) => call.path === '/pulls')).toBe(false);
+  });
   it('creates a content-only draft branch and pull request without a deployment call', async () => {
     const calls: Array<{ path: string; init: RequestInit | undefined }> = [];
     const request = vi.fn(async (path: string, init?: RequestInit) => {

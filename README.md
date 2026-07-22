@@ -29,15 +29,15 @@ repository must contain `content-manifest.json` and `pages/home.json`.
 Local saves update the sibling content file atomically and never commit it.
 The production build contains no filesystem write endpoint.
 
-Remote CMS submissions use a Cloudflare Access-protected Pages Function and a
-fine-grained GitHub token scoped only to the content repository to create a
-draft pull request there. They do not modify the frontend repository or trigger
-a Cloudflare Pages deployment; the published static site changes only after a
-deliberate frontend deployment.
+Remote CMS saves use a Cloudflare Access-protected Pages Function and a
+fine-grained GitHub token scoped only to the content repository. Validated data
+is committed atomically to the content branch with its validation artifact. The
+frontend repository is never modified and Cloudflare is not redeployed.
 
-Each remote submission creates one bounded commit containing the edited page
-and its generated validation artifact. Content pull requests are checked with
-the platform-owned validator, and retries are idempotent.
+The public site keeps its static build as a resilient fallback, then fetches the
+latest validated content through a read-only Pages Function on each refresh.
+Registered blocks, ordering, visibility, navigation, and settings can therefore
+change without a frontend build; executable application code remains frontend-only.
 
 ## Deployment setup
 

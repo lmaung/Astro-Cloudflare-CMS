@@ -1,7 +1,7 @@
 import { pageSchema, type PageDocument } from '../../src/domain/content';
 import { validateBlock } from '../../src/components/blocks/registry';
 import type { AdminConfig } from './config';
-import { GitHubApiError, type GitHubClient } from './github';
+import { commitFilesToMain, GitHubApiError, type GitHubClient } from './github';
 
 type GitHubContent = { content: string; encoding: string; sha: string };
 type GitReference = { object: { sha: string } };
@@ -195,5 +195,22 @@ export async function submitPagePullRequest(
   } catch (error) {
     if (error instanceof ContentRequestError) throw error;
     throw new ContentRequestError('unavailable', 'GitHub could not create the content pull request. No frontend change was made.');
+  }
+}
+
+export async function savePageDirect(client: GitHubClient, config: AdminConfig, slug: string, input: { data: unknown; expectedRevision: string; changeId: string }) {
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(input.changeId)) throw new ContentRequestError('invalid_content', 'A valid change identifier is required.');
+  const page = validatePage(input.data, slug);
+  const current = await readPage(client, config, slug);
+  if (current.revision !== input.expectedRevision) throw new ContentRequestError('stale_revision', 'Published content changed after this editor was loaded. Reload before saving.');
+  const serialized = `${JSON.stringify(page, null, 2)}\n`;
+  if (new TextEncoder().encode(serialized).byteLength > 256_000) throw new ContentRequestError('invalid_content', 'The page exceeds the 256 KB content limit.');
+  const validation = `${JSON.stringify({ schemaVersion: '1', page: slug, contentDigest: await sha256(serialized), changeId: input.changeId.toLowerCase() }, null, 2)}\n`;
+  try {
+    const saved = await commitFilesToMain(client, config.contentBranch, `Update ${page.title}`, [{ path: pagePath(slug), content: serialized }, { path: validationPath(slug), content: validation }]);
+    return { data: page, revision: saved.revisions[pagePath(slug)]!, mode: 'remote' as const, submission: { kind: 'direct_save' as const } };
+  } catch (error) {
+    if (error instanceof ContentRequestError) throw error;
+    throw new ContentRequestError('unavailable', 'GitHub could not save the content. No frontend deployment was triggered.');
   }
 }

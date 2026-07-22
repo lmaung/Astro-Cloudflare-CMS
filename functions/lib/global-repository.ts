@@ -1,7 +1,7 @@
 import { navigationSchema, siteSettingsSchema } from '../../src/domain/globals';
 import type { AdminConfig } from './config';
 import { ContentRequestError } from './content-repository';
-import { GitHubApiError, type GitHubClient } from './github';
+import { commitFilesToMain, GitHubApiError, type GitHubClient } from './github';
 
 type GlobalKey = 'site-settings' | 'navigation';
 type GitHubContent = { content: string; encoding: string; sha: string };
@@ -55,3 +55,15 @@ export async function submitGlobalPullRequest(client: GitHubClient, config: Admi
 }
 
 function response(data: unknown, revision: string, pull: PullRequest, branch: string) { return { data, revision, mode: 'remote' as const, submission: { kind: 'pull_request' as const, number: pull.number, url: pull.html_url, branch } }; }
+
+export async function saveGlobalDirect(client: GitHubClient, config: AdminConfig, key: GlobalKey, input: { data: unknown; expectedRevision: string; changeId: string }) {
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(input.changeId)) throw new ContentRequestError('invalid_content', 'A valid change identifier is required.');
+  const data = parse(key, input.data); const current = await readGlobal(client, config, key);
+  if (current.revision !== input.expectedRevision) throw new ContentRequestError('stale_revision', 'Global content changed after this editor was loaded. Reload before saving.');
+  const serialized = `${JSON.stringify(data, null, 2)}\n`;
+  const artifact = `${JSON.stringify({ schemaVersion: '1', global: key, contentDigest: await digest(serialized), changeId: input.changeId.toLowerCase() }, null, 2)}\n`;
+  try {
+    const saved = await commitFilesToMain(client, config.contentBranch, `Update ${key}`, [{ path: `globals/${key}.json`, content: serialized }, { path: `_validation/globals/${key}.json`, content: artifact }]);
+    return { data, revision: saved.revisions[`globals/${key}.json`]!, mode: 'remote' as const, submission: { kind: 'direct_save' as const } };
+  } catch { throw new ContentRequestError('unavailable', 'GitHub could not save the global content. No frontend deployment was triggered.'); }
+}

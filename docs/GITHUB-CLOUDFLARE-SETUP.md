@@ -141,8 +141,8 @@ separate content repository changes. This is the current intentional policy:
   repository;
 - a content save must not invoke a Cloudflare deploy hook or trigger a frontend
   redeployment;
-- the deployed static site continues to show the content from its last build
-  until an operator deliberately deploys the frontend.
+- a refreshed public page fetches the latest validated content through the
+  read-only runtime API; the static build remains the availability fallback;
 
 A future decision may introduce automatic content-triggered deployments, but
 that behavior is out of scope until explicitly approved.
@@ -217,9 +217,8 @@ For an assisted test:
 2. The authorized operator completes the Access login personally; passwords and
    one-time codes are never shared or recorded.
 3. Verify content loading and editor behavior in that authenticated session.
-4. Treat **Create content PR** as a state-changing test. Confirm it separately
-   before selecting it because it creates a real content branch and draft pull
-   request.
+4. Treat **Save content** as a state-changing test. Confirm it separately because
+   it creates a commit on the configured content branch immediately.
 
 ## 6. Configure the remote editor
 
@@ -255,8 +254,7 @@ than generated credentials:
 
 - `GITHUB_CONTENT_OWNER` is the GitHub account that owns the content repository.
 - `GITHUB_CONTENT_REPO` is the exact repository name, preserving capitalization.
-- `GITHUB_CONTENT_BRANCH` is the branch the editor reads and targets with draft
-  pull requests.
+- `GITHUB_CONTENT_BRANCH` is the branch the editor reads and updates directly.
 
 Then:
 
@@ -265,13 +263,16 @@ Then:
 2. Redeploy after adding or rotating a secret.
 3. Open the protected admin and verify that loading content succeeds.
 
-A remote save validates the content again on the server, checks the expected
-blob revision, creates an isolated `cms/<change-id>` branch, and opens a draft
-pull request against the content repository. The bounded commit contains the
-page plus `_validation/pages/<slug>.json`, which records the validated content
-digest and idempotent change identifier. Retrying the same request returns the
-same PR; reusing its identifier for different content is rejected. It never
-writes to the frontend repository and never calls a Cloudflare deploy hook.
+A remote save validates content on the server, checks the expected blob
+revision, and advances the configured content branch with one atomic Git commit.
+The commit contains the edited JSON plus its `_validation` artifact. A concurrent
+branch advance fails safely instead of overwriting newer work. It never writes
+to the frontend repository and never calls a Cloudflare deploy hook.
+
+The public `/api/content/snapshot` endpoint returns validated page, settings,
+and navigation data without exposing the GitHub credential. Responses use
+`no-store`; refreshing the website fetches the latest content and replaces the
+static fallback using safe DOM APIs. Only registered block types are rendered.
 
 Never put secrets under `vars` in a committed Wrangler file. Local secrets must
 use an ignored `.dev.vars` file; `.dev.vars*` and `.env*` are ignored by this
@@ -312,13 +313,13 @@ content, Access assertions, and user identity.
 ### Manual paired-revision preview
 
 Automatic deployment from a content save is intentionally disabled. To inspect
-a content PR against an exact frontend revision without changing that policy:
+an exact content commit against an exact frontend revision:
 
 1. Record the frontend commit SHA to test.
-2. Record the content PR head SHA.
+2. Record the content commit SHA.
 3. Locally check out the frontend SHA and run the Pages build with
-   `CONTENT_REF=<content-pr-sha> npm run build:pages`; or temporarily set the
-   trusted preview environment's `CONTENT_REF` to the content PR SHA and start a
+   `CONTENT_REF=<content-sha> npm run build:pages`; or temporarily set the
+   trusted preview environment's `CONTENT_REF` to the content SHA and start a
    deliberate preview deployment.
 4. Record both SHAs with the test result.
 5. Restore the preview environment's normal `CONTENT_REF` after testing.
@@ -343,11 +344,9 @@ After configuration, verify:
 - [ ] A frontend pull request receives a Pages preview URL.
 - [ ] `/admin*` and `/api/admin/*` require Cloudflare Access.
 - [ ] The CMS token can access only the content repository.
-- [ ] A CMS save creates a draft pull request in the content repository.
-- [ ] The content PR changes only the page and its generated validation artifact.
-- [ ] The content validation workflow passes on the draft PR.
-- [ ] Retrying the same change identifier returns the original PR.
-- [ ] Reusing the identifier for different content is rejected.
+- [ ] A CMS save creates one commit directly on the content branch.
+- [ ] The commit changes only the edited JSON and its validation artifact.
+- [ ] Refreshing the public website displays the newly saved content.
 - [ ] A CMS content save does not create a frontend commit or Pages deployment.
 - [ ] A write-only rate limit covers `/api/admin/*` PUT requests.
 - [ ] Function failure logs contain no secrets, content, assertions, or identity.
@@ -371,9 +370,9 @@ and `pages/home.json` exist at `CONTENT_REF`.
 
 ### Content changes do not deploy
 
-This is expected and intentional. The deployed static site remains on the
-content revision from its last build. Start a deliberate frontend deployment
-only when the updated content should be published.
+The static HTML is only the fallback. Confirm `/api/content/snapshot` is
+available, the GitHub token can read the content repository, and the browser is
+not blocking the runtime request. A deployment is not required for content.
 
 ### Editor says it is not configured
 

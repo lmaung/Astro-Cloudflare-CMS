@@ -18,10 +18,10 @@ export type Catalog = {
 export type EditorMode = 'local' | 'remote';
 
 export type PullRequestSubmission = {
-  kind: 'pull_request';
-  number: number;
-  url: string;
-  branch: string;
+  kind: 'pull_request' | 'direct_save';
+  number?: number;
+  url?: string;
+  branch?: string;
 };
 
 export type GlobalResponse = { data: unknown; revision: string; mode: EditorMode; submission?: PullRequestSubmission };
