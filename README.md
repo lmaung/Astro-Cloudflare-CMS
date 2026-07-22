@@ -26,6 +26,8 @@ repository must contain `content-manifest.json` and `pages/home.json`.
 - `npm run check` — regenerate and verify types/generated artifacts
 - `npm test` — run schema and provider tests
 - `npm run test:e2e` — run desktop/mobile browser workflows and axe checks
+- `npm run test:visual` — compare desktop/mobile Chromium reference images
+- `npm run test:lighthouse` — enforce three-run production performance budgets
 - `npm run build` — create the static production site
 - `npm run build:pages` — fetch the sibling content repository and build on
   Cloudflare Pages
@@ -69,6 +71,11 @@ remote editor; the public build does not require it.
 See [Gate 4 content composition](docs/GATE-4-CONTENT-COMPOSITION.md) for the
 detailed footer, registered layouts, reusable-block workflow, media metadata,
 and permanent-deletion safeguards.
+
+See [SEO and discoverability](docs/SEO-AND-DISCOVERABILITY.md), [quality
+gates](docs/QUALITY-GATES.md), and [Gate 5 template
+validation](docs/GATE-5-TEMPLATE-VALIDATION.md) for search metadata, redirects,
+release checks, and measured second-site portability evidence.
 
 ## Contributing and security
 

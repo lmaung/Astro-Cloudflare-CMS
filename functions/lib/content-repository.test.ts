@@ -6,7 +6,7 @@ import { GitHubApiError, type GitHubClient } from './github';
 
 const config: AdminConfig = { accessTeamDomain: 'https://example.cloudflareaccess.com', accessAudience: 'audience', githubToken: 'token', contentOwner: 'owner', contentRepo: 'content-only', contentBranch: 'main' };
 const changeId = '12345678-1234-4123-8123-123456789abc';
-const page = { id: 'page-home', slug: 'home', status: 'published' as const, title: 'Home', seo: { title: '', description: '' }, blocks: [{ id: 'hero', type: heroDefinition.type, status: 'active' as const, content: heroDefinition.defaults() }] };
+const page = { id: 'page-home', slug: 'home', status: 'published' as const, title: 'Home', seo: { title: '', description: '', socialImageAlt: '', noIndex: false }, blocks: [{ id: 'hero', type: heroDefinition.type, status: 'active' as const, content: heroDefinition.defaults() }] };
 const encoded = (value: unknown = page) => btoa(JSON.stringify(value));
 
 function directSaveClient(current = page) {

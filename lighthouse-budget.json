@@ -1,0 +1,9 @@
+{
+  "runs": 3,
+  "minimums": {
+    "performance": 0.95,
+    "accessibility": 1,
+    "best-practices": 0.95,
+    "seo": 1
+  }
+}

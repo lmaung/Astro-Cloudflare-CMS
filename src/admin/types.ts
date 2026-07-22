@@ -12,7 +12,7 @@ export type CatalogBlock = {
 export type Catalog = {
   generated: true;
   blocks: CatalogBlock[];
-  globals: Array<{ key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library'; title: string; description: string; schema: RJSFSchema }>;
+  globals: Array<{ key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library' | 'redirects'; title: string; description: string; schema: RJSFSchema }>;
 };
 
 export type EditorMode = 'local' | 'remote';

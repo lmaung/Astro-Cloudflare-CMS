@@ -1,14 +1,15 @@
 import { navigationSchema, siteSettingsSchema } from '../../src/domain/globals';
 import { reusableLibrarySchema } from '../../src/domain/reusables';
 import { mediaLibrarySchema } from '../../src/domain/media';
+import { redirectsSchema } from '../../src/domain/redirects';
 import type { AdminConfig } from './config';
 import { ContentRequestError, listPages } from './content-repository';
 import { commitFilesToMain, GitHubApiError, type GitHubClient } from './github';
 
-type GlobalKey = 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library';
+export type GlobalKey = 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library' | 'redirects';
 type GitHubContent = { content: string; encoding: string; sha: string };
 
-function schemaFor(key: GlobalKey) { return key === 'site-settings' ? siteSettingsSchema : key === 'navigation' ? navigationSchema : key === 'reusable-blocks' ? reusableLibrarySchema : mediaLibrarySchema; }
+function schemaFor(key: GlobalKey) { return key === 'site-settings' ? siteSettingsSchema : key === 'navigation' ? navigationSchema : key === 'reusable-blocks' ? reusableLibrarySchema : key === 'media-library' ? mediaLibrarySchema : redirectsSchema; }
 function parse(key: GlobalKey, value: unknown) { return schemaFor(key).parse(value); }
 function decode(value: string) { return new TextDecoder().decode(Uint8Array.from(atob(value.replace(/\s/g, '')), (item) => item.charCodeAt(0))); }
 async function digest(value: string) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), (byte) => byte.toString(16).padStart(2, '0')).join(''); }
@@ -18,9 +19,9 @@ async function readAt(client: GitHubClient, key: GlobalKey, ref: string) {
     const file = await client.request<GitHubContent>(`/contents/globals/${key}.json?ref=${encodeURIComponent(ref)}`);
     return { data: parse(key, JSON.parse(decode(file.content))), revision: file.sha, mode: 'remote' as const };
   } catch (error) {
-    if ((key === 'reusable-blocks' || key === 'media-library') && error instanceof GitHubApiError && error.status === 404) {
+    if ((key === 'reusable-blocks' || key === 'media-library' || key === 'redirects') && error instanceof GitHubApiError && error.status === 404) {
       const branch = await client.request<{ object: { sha: string } }>(`/git/ref/heads/${encodeURIComponent(ref)}`);
-      return { data: key === 'reusable-blocks' ? reusableLibrarySchema.parse({ blocks: [] }) : mediaLibrarySchema.parse({ assets: [] }), revision: branch.object.sha, mode: 'remote' as const, missing: true as const };
+      return { data: key === 'reusable-blocks' ? reusableLibrarySchema.parse({ blocks: [] }) : key === 'media-library' ? mediaLibrarySchema.parse({ assets: [] }) : redirectsSchema.parse({ redirects: [] }), revision: branch.object.sha, mode: 'remote' as const, missing: true as const };
     }
     if (error instanceof GitHubApiError && error.status === 404) throw new ContentRequestError('not_found', `Global content not found: ${key}`);
     if (error instanceof ContentRequestError) throw error;

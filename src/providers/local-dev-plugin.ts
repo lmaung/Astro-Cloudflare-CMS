@@ -5,7 +5,7 @@ import { LocalFilesystemProvider } from './local-filesystem';
 
 const pagePattern = /^\/api\/admin\/content\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 const pagesEndpoint = '/api/admin/pages';
-const globalPattern = /^\/api\/admin\/globals\/(site-settings|navigation|reusable-blocks|media-library)$/;
+const globalPattern = /^\/api\/admin\/globals\/(site-settings|navigation|reusable-blocks|media-library|redirects)$/;
 
 function send(response: import('node:http').ServerResponse, status: number, body: unknown): void {
   response.statusCode = status;
@@ -42,7 +42,7 @@ export function localContentPlugin(): Plugin {
         if (!pageMatch && request.url !== pagesEndpoint && !globalMatch) return next();
         try {
           if (globalMatch) {
-            const key = globalMatch[1] as 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library';
+            const key = globalMatch[1] as 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library' | 'redirects';
             if (request.method === 'GET') return send(response, 200, { ...(await provider.readGlobal(key)), mode: 'local' });
             if (request.method === 'PUT') {
               const payload = (await readJson(request)) as { data?: unknown; expectedRevision?: unknown };

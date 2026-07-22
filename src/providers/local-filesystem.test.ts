@@ -17,7 +17,7 @@ async function fixture() {
     slug: 'home',
     status: 'published' as const,
     title: 'Fixture',
-    seo: { title: '', description: '' },
+    seo: { title: '', description: '', socialImageAlt: '', noIndex: false },
     blocks: [{ id: 'hero', type: heroDefinition.type, status: 'active' as const, content: heroDefinition.defaults() }],
   };
   await writeFile(path.join(root, 'pages/home.json'), `${JSON.stringify(page, null, 2)}\n`);

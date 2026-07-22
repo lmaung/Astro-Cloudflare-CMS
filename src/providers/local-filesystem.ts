@@ -6,6 +6,7 @@ import { pageSchema, type PageDocument } from '../domain/content';
 import { navigationSchema, siteSettingsSchema } from '../domain/globals';
 import { reusableLibrarySchema } from '../domain/reusables';
 import { mediaLibrarySchema } from '../domain/media';
+import { redirectsSchema } from '../domain/redirects';
 import { validateBlock } from '../components/blocks/registry';
 import {
   ProviderError,
@@ -115,19 +116,19 @@ export class LocalFilesystemProvider implements ContentReader, ContentWriter {
     return { deleted: true as const, slug, collectionRevision: collection.revision };
   }
 
-  async readGlobal(key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library'): Promise<Versioned<unknown>> {
+  async readGlobal(key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library' | 'redirects'): Promise<Versioned<unknown>> {
     await this.verifyManifest();
     let source: string;
     try { source = await readFile(path.join(this.root, 'globals', `${key}.json`), 'utf8'); }
-    catch (error) { if ((key === 'reusable-blocks' || key === 'media-library') && (error as NodeJS.ErrnoException).code === 'ENOENT') return { data: key === 'reusable-blocks' ? { blocks: [] } : { assets: [] }, revision: revisionFor('') }; throw error; }
-    const schema = key === 'site-settings' ? siteSettingsSchema : key === 'navigation' ? navigationSchema : key === 'reusable-blocks' ? reusableLibrarySchema : mediaLibrarySchema;
+    catch (error) { if ((key === 'reusable-blocks' || key === 'media-library' || key === 'redirects') && (error as NodeJS.ErrnoException).code === 'ENOENT') return { data: key === 'reusable-blocks' ? { blocks: [] } : key === 'media-library' ? { assets: [] } : { redirects: [] }, revision: revisionFor('') }; throw error; }
+    const schema = key === 'site-settings' ? siteSettingsSchema : key === 'navigation' ? navigationSchema : key === 'reusable-blocks' ? reusableLibrarySchema : key === 'media-library' ? mediaLibrarySchema : redirectsSchema;
     return { data: schema.parse(JSON.parse(source)), revision: revisionFor(source) };
   }
 
-  async writeGlobal(key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library', data: unknown, expectedRevision: string): Promise<Versioned<unknown>> {
+  async writeGlobal(key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library' | 'redirects', data: unknown, expectedRevision: string): Promise<Versioned<unknown>> {
     const current = await this.readGlobal(key);
     if (current.revision !== expectedRevision) throw new ProviderError('stale_revision', 'Global content changed after it was loaded. Reload before saving.');
-    const schema = key === 'site-settings' ? siteSettingsSchema : key === 'navigation' ? navigationSchema : key === 'reusable-blocks' ? reusableLibrarySchema : mediaLibrarySchema;
+    const schema = key === 'site-settings' ? siteSettingsSchema : key === 'navigation' ? navigationSchema : key === 'reusable-blocks' ? reusableLibrarySchema : key === 'media-library' ? mediaLibrarySchema : redirectsSchema;
     const validated = schema.parse(data);
     const serialized = `${JSON.stringify(validated, null, 2)}\n`;
     const destination = path.join(this.root, 'globals', `${key}.json`);

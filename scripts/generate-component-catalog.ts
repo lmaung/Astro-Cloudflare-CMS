@@ -5,6 +5,7 @@ import { blockDefinitions } from '../src/components/blocks/registry';
 import { navigationSchema, siteSettingsSchema } from '../src/domain/globals';
 import { reusableLibrarySchema } from '../src/domain/reusables';
 import { mediaLibrarySchema } from '../src/domain/media';
+import { redirectsSchema } from '../src/domain/redirects';
 
 const outputDirectory = path.resolve('generated/schemas');
 const outputPath = path.join(outputDirectory, 'component-catalog.json');
@@ -23,6 +24,7 @@ const catalog = {
     { key: 'navigation', title: 'Navigation', description: 'Primary site navigation links.', schema: z.toJSONSchema(navigationSchema, { target: 'draft-7' }) },
     { key: 'reusable-blocks', title: 'Reusable blocks', description: 'Shared registered blocks. Changes flow to linked page instances unless a field is refined.', schema: z.toJSONSchema(reusableLibrarySchema, { target: 'draft-7' }) },
     { key: 'media-library', title: 'Media', description: 'Reusable image metadata, accessible alternative text, dimensions, and focal points.', schema: z.toJSONSchema(mediaLibrarySchema, { target: 'draft-7' }) },
+    { key: 'redirects', title: 'Redirects', description: 'Validated legacy paths and their safe replacement destinations.', schema: z.toJSONSchema(redirectsSchema, { target: 'draft-7' }) },
   ],
 };
 

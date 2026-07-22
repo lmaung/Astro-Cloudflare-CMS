@@ -3,14 +3,14 @@
 This runbook is the canonical setup guide for the Astro Cloudflare CMS
 repository pair.
 
-Last verified: 2026-07-21
+Last verified: 2026-07-22
 
 ## Architecture at a glance
 
-| Role | GitHub repository | Local path |
-|---|---|---|
-| Frontend, admin, schemas, build, Functions | `lmaung/Astro-Cloudflare-CMS` | `~/Repos/astro-boilerplate-cms` |
-| Content, configuration, and media only | `lmaung/Astro-Cloudflare-CMS-content` | `~/Repos/astro-boilerplate-cms-content` |
+| Role                                       | GitHub repository                     | Local path                              |
+| ------------------------------------------ | ------------------------------------- | --------------------------------------- |
+| Frontend, admin, schemas, build, Functions | `lmaung/Astro-Cloudflare-CMS`         | `~/Repos/astro-boilerplate-cms`         |
+| Content, configuration, and media only     | `lmaung/Astro-Cloudflare-CMS-content` | `~/Repos/astro-boilerplate-cms-content` |
 
 Cloudflare Pages connects to the **frontend repository only**. During a Pages
 build, `npm run build:pages` checks out the content repository as a sibling and
@@ -98,14 +98,14 @@ Use **Pages**, not a Worker application:
 
 Use these build settings:
 
-| Setting | Value |
-|---|---|
-| Production branch | `main` |
-| Framework preset | Astro, or None if entered manually |
-| Root directory | `/` (repository root) |
-| Build command | `npm run build:pages` |
-| Build output directory | `dist` |
-| Node version | `22.16.0`, controlled by `.node-version` |
+| Setting                | Value                                    |
+| ---------------------- | ---------------------------------------- |
+| Production branch      | `main`                                   |
+| Framework preset       | Astro, or None if entered manually       |
+| Root directory         | `/` (repository root)                    |
+| Build command          | `npm run build:pages`                    |
+| Build output directory | `dist`                                   |
+| Node version           | `22.16.0`, controlled by `.node-version` |
 
 The Pages v3 build image currently defaults to Node 22.16.0. The checked-in
 `.node-version` prevents an unnoticed runtime change and satisfies Astro's
@@ -116,11 +116,16 @@ minimum Node requirement.
 The default values are already correct for these public repositories. They may
 be overridden in **Settings > Variables and Secrets** when needed:
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `CONTENT_REPO_URL` | `https://github.com/lmaung/Astro-Cloudflare-CMS-content.git` | Content clone URL |
-| `CONTENT_REF` | `main` | Branch, tag, or exact commit SHA to build |
-| `CONTENT_REPO_PATH` | `../astro-boilerplate-cms-content` | Sibling checkout path |
+| Variable            | Default                                                      | Purpose                                   |
+| ------------------- | ------------------------------------------------------------ | ----------------------------------------- |
+| `CONTENT_REPO_URL`  | `https://github.com/lmaung/Astro-Cloudflare-CMS-content.git` | Content clone URL                         |
+| `CONTENT_REF`       | `main`                                                       | Branch, tag, or exact commit SHA to build |
+| `CONTENT_REPO_PATH` | `../astro-boilerplate-cms-content`                           | Sibling checkout path                     |
+
+The default local path assumes the exact sibling directory name shown above.
+For an independently named site pair, set `CONTENT_REPO_PATH` explicitly for
+development, validation, and builds (for example,
+`CONTENT_REPO_PATH=../second-site-content`).
 
 For a reproducible production release, set `CONTENT_REF` to an exact content
 commit SHA. Using `main` is acceptable during the initial evaluation but makes a
@@ -196,10 +201,10 @@ zone ID, or Pages project ID.
 
 Add these Access values to the Pages project:
 
-| Variable | Cloudflare type | Value |
-|---|---|---|
-| `CLOUDFLARE_ACCESS_TEAM_DOMAIN` | Plaintext | Full `https://<team>.cloudflareaccess.com` URL |
-| `CLOUDFLARE_ACCESS_AUD` | Plaintext | Application Audience (AUD) tag |
+| Variable                        | Cloudflare type | Value                                          |
+| ------------------------------- | --------------- | ---------------------------------------------- |
+| `CLOUDFLARE_ACCESS_TEAM_DOMAIN` | Plaintext       | Full `https://<team>.cloudflareaccess.com` URL |
+| `CLOUDFLARE_ACCESS_AUD`         | Plaintext       | Application Audience (AUD) tag                 |
 
 The Pages Function independently verifies the `Cf-Access-Jwt-Assertion`
 signature, issuer, and audience. Missing or invalid Access configuration fails
@@ -240,14 +245,14 @@ exposed.
 In the Pages project, open **Settings > Variables and Secrets** and add all of
 the following:
 
-| Variable | Cloudflare type | Value |
-|---|---|---|
-| `CLOUDFLARE_ACCESS_TEAM_DOMAIN` | Plaintext | Full `https://<team>.cloudflareaccess.com` URL from Zero Trust settings |
-| `CLOUDFLARE_ACCESS_AUD` | Plaintext | AUD tag from the protected Access application |
-| `GITHUB_TOKEN` | **Encrypted secret** | Fine-grained PAT scoped only to the content repository |
-| `GITHUB_CONTENT_OWNER` | Plaintext | `lmaung` |
-| `GITHUB_CONTENT_REPO` | Plaintext | `Astro-Cloudflare-CMS-content` |
-| `GITHUB_CONTENT_BRANCH` | Plaintext | `main` |
+| Variable                        | Cloudflare type      | Value                                                                   |
+| ------------------------------- | -------------------- | ----------------------------------------------------------------------- |
+| `CLOUDFLARE_ACCESS_TEAM_DOMAIN` | Plaintext            | Full `https://<team>.cloudflareaccess.com` URL from Zero Trust settings |
+| `CLOUDFLARE_ACCESS_AUD`         | Plaintext            | AUD tag from the protected Access application                           |
+| `GITHUB_TOKEN`                  | **Encrypted secret** | Fine-grained PAT scoped only to the content repository                  |
+| `GITHUB_CONTENT_OWNER`          | Plaintext            | `lmaung`                                                                |
+| `GITHUB_CONTENT_REPO`           | Plaintext            | `Astro-Cloudflare-CMS-content`                                          |
+| `GITHUB_CONTENT_BRANCH`         | Plaintext            | `main`                                                                  |
 
 The three `GITHUB_CONTENT_*` values are fixed deployment configuration rather
 than generated credentials:

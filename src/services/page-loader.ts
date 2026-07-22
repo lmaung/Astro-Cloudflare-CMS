@@ -11,7 +11,7 @@ const fallbackPage: PageDocument = {
   slug: 'home',
   status: 'published',
   title: 'Astro Boilerplate CMS',
-  seo: { title: '', description: '' },
+  seo: { title: '', description: '', socialImageAlt: '', noIndex: false },
   blocks: [
     { id: 'hero-home', type: heroDefinition.type, status: 'active', content: heroDefinition.defaults() },
     {
@@ -40,6 +40,9 @@ export async function loadHomePage(): Promise<PageDocument> {
 const fallbackSettings: SiteSettings = {
   siteName: 'Astro CMS',
   tagline: 'Structured content for modern websites.',
+  siteUrl: 'https://example.com',
+  locale: 'en',
+  organization: { name: 'Astro CMS', sameAs: [] },
   defaultSeo: { titleSuffix: 'Astro CMS', description: 'Reusable Git-backed CMS platform built with Astro.' },
   footer: { copyright: '© 2026 Astro CMS', columns: [], socialLinks: [], legalLinks: [], supportingImages: [], newsletter: { enabled: false, heading: 'Stay informed', description: '', actionLabel: 'Subscribe', privacyNote: '' }, appearance: { variant: 'light', overlay: 'medium' } },
 };
