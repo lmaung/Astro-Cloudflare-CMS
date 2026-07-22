@@ -66,6 +66,9 @@ test('navigation editor exposes accessible ordered controls', async ({ page }) =
   await expect(page.getByText('Published page loaded. Saves publish immediately without redeploying.')).toBeVisible();
   await page.getByRole('button', { name: 'Navigation', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Navigation', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Add menu item', exact: true }).click({ force: true });
+  await expect(page.getByRole('group', { name: 'Menu item 2', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save navigation', exact: true })).toBeEnabled();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });

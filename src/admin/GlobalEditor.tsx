@@ -3,8 +3,14 @@ import validator from '@rjsf/validator-ajv8';
 import { useEffect, useState } from 'react';
 import type { RJSFSchema } from '@rjsf/utils';
 import { loadGlobal, saveGlobal } from './local-gateway';
+import { NavigationEditor } from './NavigationEditor';
 
 export function GlobalEditor({ definition }: { definition: { key: string; title: string; description: string; schema: RJSFSchema } }) {
+  if (definition.key === 'navigation') return <NavigationEditor title={definition.title} description={definition.description} />;
+  return <SchemaGlobalEditor definition={definition} />;
+}
+
+function SchemaGlobalEditor({ definition }: { definition: { key: string; title: string; description: string; schema: RJSFSchema } }) {
   const [data, setData] = useState<unknown>();
   const [revision, setRevision] = useState('');
   const [dirty, setDirty] = useState(false);
