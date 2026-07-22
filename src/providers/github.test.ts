@@ -7,13 +7,24 @@ const page = {
   slug: 'home',
   status: 'published' as const,
   title: 'Fixture',
+  access: { readRoles: ['public'], writeRoles: ['admin'] },
   seo: { title: '', description: '', socialImageAlt: '', noIndex: false },
-  blocks: [{ id: 'hero', type: heroDefinition.type, status: 'active' as const, content: heroDefinition.defaults() }],
+  blocks: [
+    {
+      id: 'hero',
+      type: heroDefinition.type,
+      status: 'active' as const,
+      content: heroDefinition.defaults(),
+    },
+  ],
 };
 
 function transport(overrides: Partial<GitHubTransport> = {}): GitHubTransport {
   return {
-    readFile: vi.fn(async () => ({ content: JSON.stringify(page), sha: 'blob-1' })),
+    readFile: vi.fn(async () => ({
+      content: JSON.stringify(page),
+      sha: 'blob-1',
+    })),
     commitFile: vi.fn(async () => ({ blobSha: 'blob-2' })),
     ...overrides,
   };
@@ -24,10 +35,12 @@ describe('GitHubContentProvider contract', () => {
     const adapter = transport();
     const result = await new GitHubContentProvider(adapter).writePage(page, 'blob-1');
     expect(result.revision).toBe('blob-2');
-    expect(adapter.commitFile).toHaveBeenCalledWith(expect.objectContaining({
-      path: 'pages/home.json',
-      expectedBlobSha: 'blob-1',
-    }));
+    expect(adapter.commitFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: 'pages/home.json',
+        expectedBlobSha: 'blob-1',
+      }),
+    );
   });
 
   it('rejects a stale revision before committing', async () => {
@@ -39,7 +52,11 @@ describe('GitHubContentProvider contract', () => {
   });
 
   it('normalizes transport failures', async () => {
-    const adapter = transport({ commitFile: vi.fn(async () => { throw new Error('upstream unavailable'); }) });
+    const adapter = transport({
+      commitFile: vi.fn(async () => {
+        throw new Error('upstream unavailable');
+      }),
+    });
     await expect(new GitHubContentProvider(adapter).writePage(page, 'blob-1')).rejects.toMatchObject({
       code: 'unavailable',
     });

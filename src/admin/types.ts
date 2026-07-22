@@ -1,5 +1,6 @@
 import type { RJSFSchema } from '@rjsf/utils';
 import type { PageDocument } from '../domain/content';
+import type { AuthorizationDirectory } from '../domain/authorization';
 
 export type CatalogBlock = {
   type: string;
@@ -12,14 +13,24 @@ export type CatalogBlock = {
 export type Catalog = {
   generated: true;
   blocks: CatalogBlock[];
-  globals: Array<{ key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library' | 'redirects'; title: string; description: string; schema: RJSFSchema }>;
+  globals: Array<{
+    key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library' | 'redirects';
+    title: string;
+    description: string;
+    schema: RJSFSchema;
+  }>;
 };
 
 export type EditorMode = 'local' | 'remote';
 
 export type SaveSubmission = { kind: 'direct_save' };
 
-export type GlobalResponse = { data: unknown; revision: string; mode: EditorMode; submission?: SaveSubmission };
+export type GlobalResponse = {
+  data: unknown;
+  revision: string;
+  mode: EditorMode;
+  submission?: SaveSubmission;
+};
 
 export type PageResponse = {
   data: PageDocument;
@@ -30,5 +41,20 @@ export type PageResponse = {
 };
 
 export type PageSummary = Pick<PageDocument, 'id' | 'slug' | 'status' | 'title'>;
-export type PageListResponse = { data: PageSummary[]; revision: string; mode: EditorMode };
-export type DeletePageResponse = { deleted: true; slug: string; collectionRevision: string; mode: EditorMode; submission?: SaveSubmission };
+export type PageListResponse = {
+  data: PageSummary[];
+  revision: string;
+  mode: EditorMode;
+};
+export type DeletePageResponse = {
+  deleted: true;
+  slug: string;
+  collectionRevision: string;
+  mode: EditorMode;
+  submission?: SaveSubmission;
+};
+export type AuthorizationResponse = {
+  data: AuthorizationDirectory;
+  revision: string;
+  currentUser: { email: string };
+};

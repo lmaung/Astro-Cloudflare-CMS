@@ -4,7 +4,7 @@ import { ContentRequestError } from './content-repository';
 import { saveGlobalDirect } from './global-repository';
 import type { GitHubClient } from './github';
 
-const config: AdminConfig = { accessTeamDomain: 'https://example.cloudflareaccess.com', accessAudience: 'audience', githubToken: 'token', contentOwner: 'owner', contentRepo: 'content-only', contentBranch: 'main' };
+const config: AdminConfig = { accessTeamDomain: 'https://example.cloudflareaccess.com', accessAudience: 'audience', memberAccessAudience: 'member-audience', githubToken: 'token', contentOwner: 'owner', contentRepo: 'content-only', contentBranch: 'main' };
 const settings = { siteName: 'Example', tagline: 'A useful site.', defaultSeo: { titleSuffix: 'Example', description: 'Description' }, footer: { copyright: '© Example' } };
 const changeId = '12345678-1234-4123-8123-123456789abc';
 

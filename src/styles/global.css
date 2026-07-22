@@ -148,6 +148,18 @@ button, select, a { -webkit-tap-highlight-color: transparent; }
 .field-wide { grid-column: 1 / -1; }
 .checkbox-field { display: flex !important; grid-template-columns: auto 1fr; align-items: center; min-height: 44px; }
 .checkbox-field input { width: 1.25rem; min-height: 1.25rem; margin: 0; }
+.access-policy, .authorization-panel { border: 1px solid var(--color-border-default); border-radius: 0.75rem; background: var(--color-bg-surface); padding: 1rem; }
+.access-policy legend { padding-inline: 0.35rem; font-weight: 700; }
+.access-policy > p, .authorization-panel .panel-heading p { color: var(--color-text-secondary); margin: 0 0 0.75rem; }
+.role-options { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.role-options .checkbox-field { min-height: 2.75rem; }
+.authorization-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.authorization-list { display: grid; gap: 0.75rem; list-style: none; margin: 1rem 0 0; padding: 0; }
+.authorization-list > li { border: 1px solid var(--color-border-default); border-radius: 0.65rem; display: grid; gap: 0.75rem; padding: 1rem; }
+.authorization-list__heading { align-items: end; display: flex; gap: 1rem; justify-content: space-between; }
+.authorization-list__heading label { flex: 1; }
+.authorization-list fieldset { border: 0; margin: 0; padding: 0; }
+.authorization-list legend { font-weight: 700; margin-bottom: 0.35rem; }
 .danger-action { border-color: var(--color-danger); background: var(--color-bg-surface); color: var(--color-danger); }
 .danger-action:hover { background: #fef2f2; }
 .delete-zone { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 1.5rem; margin-top: 1.5rem; padding: 1.25rem; border: 1px solid var(--color-danger); border-radius: 0.8rem; background: var(--color-bg-surface); }
@@ -217,6 +229,8 @@ textarea { min-height: 8rem; resize: vertical; }
   .page-manager { grid-template-columns: 1fr; }
   .page-list-panel { border-right: 0; border-bottom: 1px solid var(--color-border-default); }
   .delete-zone { grid-template-columns: 1fr; }
+  .authorization-grid { grid-template-columns: 1fr; }
+  .authorization-list__heading { align-items: stretch; flex-direction: column; }
 }
 
 @media (max-width: 520px) {

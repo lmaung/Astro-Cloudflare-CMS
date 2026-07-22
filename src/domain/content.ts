@@ -1,20 +1,16 @@
-import { z } from "zod";
-import { reusableInstanceSchema } from "./reusables";
+import { z } from 'zod';
+import { reusableInstanceSchema } from './reusables';
+import { accessPolicySchema } from './authorization';
 
-export const blockStatusSchema = z.enum(["active", "hidden"]).default("active");
+export const blockStatusSchema = z.enum(['active', 'hidden']).default('active');
 
-export const pageStatusSchema = z
-  .enum(["published", "archived"])
-  .default("published");
+export const pageStatusSchema = z.enum(['published', 'archived']).default('published');
 
 export const pageSlugSchema = z
   .string()
   .min(1)
   .max(80)
-  .regex(
-    /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-    "Use lowercase letters, numbers, and single hyphens.",
-  );
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers, and single hyphens.');
 
 export const blockEnvelopeSchema = z.object({
   id: z.string().min(1),
@@ -29,36 +25,37 @@ export const pageSchema = z.object({
   slug: pageSlugSchema,
   status: pageStatusSchema,
   title: z.string().min(1).max(120),
+  access: accessPolicySchema.default({
+    readRoles: ['public'],
+    writeRoles: ['admin'],
+  }),
   seo: z
     .object({
-      title: z.string().max(120).default(""),
-      description: z.string().max(200).default(""),
+      title: z.string().max(120).default(''),
+      description: z.string().max(200).default(''),
       socialImage: z
         .string()
         .refine(
-          (value) =>
-            value === "" ||
-            value.startsWith("/") ||
-            value.startsWith("https://"),
-          "Use a site-relative or HTTPS image URL.",
+          (value) => value === '' || value.startsWith('/') || value.startsWith('https://'),
+          'Use a site-relative or HTTPS image URL.',
         )
         .optional(),
-      socialImageAlt: z.string().max(180).default(""),
+      socialImageAlt: z.string().max(180).default(''),
       noIndex: z.boolean().default(false),
     })
     .superRefine((seo, context) => {
       if (seo.socialImage && !seo.socialImageAlt.trim()) {
         context.addIssue({
-          code: "custom",
-          path: ["socialImageAlt"],
-          message: "Describe the social image for accessibility.",
+          code: 'custom',
+          path: ['socialImageAlt'],
+          message: 'Describe the social image for accessibility.',
         });
       }
     })
     .default({
-      title: "",
-      description: "",
-      socialImageAlt: "",
+      title: '',
+      description: '',
+      socialImageAlt: '',
       noIndex: false,
     }),
   blocks: z.array(blockEnvelopeSchema),

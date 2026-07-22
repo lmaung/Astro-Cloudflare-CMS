@@ -21,14 +21,18 @@ Cloudflare Access-protected admin content API.
 
 ## 1. GitHub repository configuration
 
-Both repositories should be public with `main` as the default branch.
+The frontend repository may be public. Every customer or production
+site-specific content repository **must be private before any user email address
+or other identity data is added**. The public reference repository may contain
+only explicitly approved demo identities controlled by the demo operator; never
+copy those records into a customer site. Use `main` as the default branch for
+both repositories.
 
 ### Cloudflare deployment GitHub App
 
 Install or configure the **Cloudflare Workers and Pages** GitHub App and grant it
-access only to repositories Cloudflare needs to build. The frontend repository
-must be selected. Access to the content repository is harmless but is not
-required for the current public read during a Pages build.
+access only to repositories Cloudflare needs to build. Both the frontend and
+private content repositories must be selected so Cloudflare can build the site.
 
 GitHub location:
 
@@ -77,9 +81,8 @@ workflow changes may become impossible to merge.
 
 ### Current deployment
 
-The public build does not require a token: Cloudflare can clone the public
-content repository during an intentional build. The fine-grained PAT exists
-only for the protected remote editor's GitHub API operations.
+The fine-grained PAT authenticates the Pages build checkout of the private
+content repository and the protected remote editor's GitHub API operations.
 
 Use a dedicated token with the least privileges described above. Store it only
 as the encrypted Cloudflare secret `GITHUB_TOKEN`. Never expose it as plaintext,
@@ -113,7 +116,7 @@ minimum Node requirement.
 
 ### Non-secret build variables
 
-The default values are already correct for these public repositories. They may
+The default values are already correct for the reference repository pair. They may
 be overridden in **Settings > Variables and Secrets** when needed:
 
 | Variable            | Default                                                      | Purpose                                   |
@@ -206,6 +209,10 @@ Add these Access values to the Pages project:
 | `CLOUDFLARE_ACCESS_TEAM_DOMAIN` | Plaintext       | Full `https://<team>.cloudflareaccess.com` URL |
 | `CLOUDFLARE_ACCESS_AUD`         | Plaintext       | Application Audience (AUD) tag                 |
 
+Page-level member authorization also requires a second Access application and
+a private content repository. Complete [Authentication and role
+authorization](AUTHORIZATION.md) before publishing a protected page.
+
 The Pages Function independently verifies the `Cf-Access-Jwt-Assertion`
 signature, issuer, and audience. Missing or invalid Access configuration fails
 closed; it does not fall back to an unprotected editor.
@@ -249,10 +256,15 @@ the following:
 | ------------------------------- | -------------------- | ----------------------------------------------------------------------- |
 | `CLOUDFLARE_ACCESS_TEAM_DOMAIN` | Plaintext            | Full `https://<team>.cloudflareaccess.com` URL from Zero Trust settings |
 | `CLOUDFLARE_ACCESS_AUD`         | Plaintext            | AUD tag from the protected Access application                           |
+| `CLOUDFLARE_MEMBER_ACCESS_AUD`  | Plaintext            | AUD tag from the member-content Access application                      |
 | `GITHUB_TOKEN`                  | **Encrypted secret** | Fine-grained PAT scoped only to the content repository                  |
 | `GITHUB_CONTENT_OWNER`          | Plaintext            | `lmaung`                                                                |
 | `GITHUB_CONTENT_REPO`           | Plaintext            | `Astro-Cloudflare-CMS-content`                                          |
 | `GITHUB_CONTENT_BRANCH`         | Plaintext            | `main`                                                                  |
+
+User and role data is stored in `globals/authorization.json` in the content
+repository. Do not add real user records until that site-specific repository is
+private. No Cloudflare database binding is required.
 
 The three `GITHUB_CONTENT_*` values are fixed deployment configuration rather
 than generated credentials:
@@ -373,6 +385,10 @@ After configuration, verify:
 - [ ] The deployed Home page contains content from the content repository.
 - [ ] A frontend pull request receives a Pages preview URL.
 - [ ] `/admin*` and `/api/admin/*` require Cloudflare Access.
+- [ ] `/members/*` and `/api/content/protected-snapshot*` share a member Access application.
+- [ ] Every customer/production content repository is private before real user records are added.
+- [ ] Public reference content contains only explicitly approved demo identities.
+- [ ] `globals/authorization.json` exists and passes content validation.
 - [ ] The CMS token can access only the content repository.
 - [ ] A CMS save creates one commit directly on the content branch.
 - [ ] Creating a page adds `pages/<slug>.json` and its validation artifact in

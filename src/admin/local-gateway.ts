@@ -1,5 +1,5 @@
 import type { PageDocument } from '../domain/content';
-import type { DeletePageResponse, PageListResponse, PageResponse } from './types';
+import type { AuthorizationResponse, DeletePageResponse, PageListResponse, PageResponse } from './types';
 import type { GlobalResponse } from './types';
 
 type ApiError = { code?: string; message?: string };
@@ -25,27 +25,48 @@ export async function loadGlobal(key: string): Promise<GlobalResponse> {
   return parseResponse<GlobalResponse>(await fetch(`/api/admin/globals/${key}`, { cache: 'no-store' }));
 }
 
-export async function saveGlobal(key: string, data: unknown, expectedRevision: string, changeId: string): Promise<GlobalResponse> {
-  return parseResponse<GlobalResponse>(await fetch(`/api/admin/globals/${key}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data, expectedRevision, changeId }) }));
+export async function saveGlobal(
+  key: string,
+  data: unknown,
+  expectedRevision: string,
+  changeId: string,
+): Promise<GlobalResponse> {
+  return parseResponse<GlobalResponse>(
+    await fetch(`/api/admin/globals/${key}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data, expectedRevision, changeId }),
+    }),
+  );
 }
 
 export async function loadPages(): Promise<PageListResponse> {
   return parseResponse<PageListResponse>(await fetch('/api/admin/pages', { cache: 'no-store' }));
 }
 
-export async function createPage(data: PageDocument, expectedRevision: string, changeId: string): Promise<PageResponse> {
-  return parseResponse<PageResponse>(await fetch('/api/admin/pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data, expectedRevision, changeId }) }));
-}
-
-export async function loadPage(slug: string): Promise<PageResponse> {
-  return parseResponse<PageResponse>(await fetch(`/api/admin/content/${encodeURIComponent(slug)}`, { cache: 'no-store' }));
-}
-
-export async function savePage(
+export async function createPage(
   data: PageDocument,
   expectedRevision: string,
   changeId: string,
 ): Promise<PageResponse> {
+  return parseResponse<PageResponse>(
+    await fetch('/api/admin/pages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data, expectedRevision, changeId }),
+    }),
+  );
+}
+
+export async function loadPage(slug: string): Promise<PageResponse> {
+  return parseResponse<PageResponse>(
+    await fetch(`/api/admin/content/${encodeURIComponent(slug)}`, {
+      cache: 'no-store',
+    }),
+  );
+}
+
+export async function savePage(data: PageDocument, expectedRevision: string, changeId: string): Promise<PageResponse> {
   return parseResponse<PageResponse>(
     await fetch(`/api/admin/content/${encodeURIComponent(data.slug)}`, {
       method: 'PUT',
@@ -55,10 +76,33 @@ export async function savePage(
   );
 }
 
-export async function deletePage(slug: string, expectedRevision: string, confirmation: string): Promise<DeletePageResponse> {
-  return parseResponse<DeletePageResponse>(await fetch(`/api/admin/content/${encodeURIComponent(slug)}`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ expectedRevision, confirmation }),
-  }));
+export async function deletePage(
+  slug: string,
+  expectedRevision: string,
+  confirmation: string,
+): Promise<DeletePageResponse> {
+  return parseResponse<DeletePageResponse>(
+    await fetch(`/api/admin/content/${encodeURIComponent(slug)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expectedRevision, confirmation }),
+    }),
+  );
+}
+
+export async function loadAuthorization(): Promise<AuthorizationResponse> {
+  return parseResponse<AuthorizationResponse>(await fetch('/api/admin/authorization', { cache: 'no-store' }));
+}
+
+export async function saveAuthorization(
+  data: AuthorizationResponse['data'],
+  expectedRevision: string,
+): Promise<AuthorizationResponse> {
+  return parseResponse<AuthorizationResponse>(
+    await fetch('/api/admin/authorization', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data, expectedRevision }),
+    }),
+  );
 }

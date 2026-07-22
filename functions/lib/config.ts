@@ -1,6 +1,7 @@
 export type AdminEnv = {
   CLOUDFLARE_ACCESS_TEAM_DOMAIN?: string;
   CLOUDFLARE_ACCESS_AUD?: string;
+  CLOUDFLARE_MEMBER_ACCESS_AUD?: string;
   GITHUB_TOKEN?: string;
   GITHUB_CONTENT_OWNER?: string;
   GITHUB_CONTENT_REPO?: string;
@@ -10,6 +11,7 @@ export type AdminEnv = {
 export type AdminConfig = {
   accessTeamDomain: string;
   accessAudience: string;
+  memberAccessAudience: string;
   githubToken: string;
   contentOwner: string;
   contentRepo: string;
@@ -18,7 +20,7 @@ export type AdminConfig = {
 
 export class ConfigurationError extends Error {}
 
-function required(env: AdminEnv, key: keyof AdminEnv): string {
+function required(env: AdminEnv, key: Exclude<keyof AdminEnv, 'CLOUDFLARE_MEMBER_ACCESS_AUD'>): string {
   const value = env[key]?.trim();
   if (!value) throw new ConfigurationError(`Missing required server configuration: ${key}`);
   return value;
@@ -30,9 +32,12 @@ export function readAdminConfig(env: AdminEnv): AdminConfig {
     throw new ConfigurationError('CLOUDFLARE_ACCESS_TEAM_DOMAIN must be an HTTPS cloudflareaccess.com URL.');
   }
 
+  const accessAudience = required(env, 'CLOUDFLARE_ACCESS_AUD');
+
   return {
     accessTeamDomain,
-    accessAudience: required(env, 'CLOUDFLARE_ACCESS_AUD'),
+    accessAudience,
+    memberAccessAudience: env.CLOUDFLARE_MEMBER_ACCESS_AUD?.trim() || accessAudience,
     githubToken: required(env, 'GITHUB_TOKEN'),
     contentOwner: required(env, 'GITHUB_CONTENT_OWNER'),
     contentRepo: required(env, 'GITHUB_CONTENT_REPO'),

@@ -1,5 +1,8 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import type { AdminConfig } from './config';
+import { principalFor, type Principal } from '../../src/domain/authorization';
+import { rolesForEmail } from './authorization-store';
+import { createGitHubClient } from './github';
 
 export class AuthorizationError extends Error {}
 
@@ -24,6 +27,18 @@ export async function verifyCloudflareAccess(request: Request, config: AdminConf
   } catch {
     throw new AuthorizationError('Cloudflare Access authorization is invalid or expired.');
   }
+}
+
+export async function authenticatedPrincipal(
+  request: Request,
+  config: AdminConfig,
+): Promise<Principal> {
+  const payload = await verifyCloudflareAccess(request, config);
+  if (typeof payload.email !== 'string' || !payload.email.trim()) {
+    throw new AuthorizationError('The authenticated identity does not include an email address.');
+  }
+  const email = payload.email.trim().toLowerCase();
+  return principalFor(email, await rolesForEmail(createGitHubClient(config), config, email));
 }
 
 export function requireSameOrigin(request: Request): void {

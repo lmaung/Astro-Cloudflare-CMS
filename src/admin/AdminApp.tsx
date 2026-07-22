@@ -1,79 +1,62 @@
-import Form from "@rjsf/core";
-import type { IChangeEvent } from "@rjsf/core";
-import validator from "@rjsf/validator-ajv8";
-import { useEffect, useMemo, useState } from "react";
-import catalogSource from "../../generated/schemas/component-catalog.json";
-import type { BlockEnvelope, PageDocument } from "../domain/content";
-import {
-  resolveReusableBlock,
-  type ReusableLibrary,
-} from "../domain/reusables";
-import {
-  createPage,
-  deletePage,
-  loadGlobal,
-  loadPage,
-  loadPages,
-  savePage,
-} from "./local-gateway";
-import type { Catalog, EditorMode, PageSummary } from "./types";
-import { GlobalEditor } from "./GlobalEditor";
+import Form from '@rjsf/core';
+import type { IChangeEvent } from '@rjsf/core';
+import validator from '@rjsf/validator-ajv8';
+import { useEffect, useMemo, useState } from 'react';
+import catalogSource from '../../generated/schemas/component-catalog.json';
+import type { BlockEnvelope, PageDocument } from '../domain/content';
+import { resolveReusableBlock, type ReusableLibrary } from '../domain/reusables';
+import { createPage, deletePage, loadGlobal, loadPage, loadPages, savePage, loadAuthorization } from './local-gateway';
+import type { Catalog, EditorMode, PageSummary } from './types';
+import { GlobalEditor } from './GlobalEditor';
+import { AuthorizationEditor } from './AuthorizationEditor';
+import type { RoleDefinition } from '../domain/authorization';
 
 const catalog = catalogSource as Catalog;
 type Section =
-  | "pages"
-  | "site-settings"
-  | "navigation"
-  | "reusable-blocks"
-  | "media-library"
-  | "redirects";
+  'pages' | 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library' | 'redirects' | 'authorization';
 type Status = {
-  kind: "loading" | "ready" | "saving" | "saved" | "error";
+  kind: 'loading' | 'ready' | 'saving' | 'saved' | 'error';
   message: string;
 };
 
 function newId(type: string): string {
-  return `${type.replace("/", "-")}-${crypto.randomUUID()}`;
+  return `${type.replace('/', '-')}-${crypto.randomUUID()}`;
 }
 function slugFromTitle(title: string): string {
   return title
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
     .slice(0, 80);
 }
 
 export default function AdminApp() {
   const [pages, setPages] = useState<PageSummary[]>([]);
-  const [collectionRevision, setCollectionRevision] = useState("");
+  const [collectionRevision, setCollectionRevision] = useState('');
   const [page, setPage] = useState<PageDocument | null>(null);
-  const [revision, setRevision] = useState("");
+  const [revision, setRevision] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [mode, setMode] = useState<EditorMode | null>(null);
   const [status, setStatus] = useState<Status>({
-    kind: "loading",
-    message: "Loading pages…",
+    kind: 'loading',
+    message: 'Loading pages…',
   });
-  const [section, setSection] = useState<Section>("pages");
+  const [section, setSection] = useState<Section>('pages');
   const [creating, setCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newSlug, setNewSlug] = useState("");
+  const [newTitle, setNewTitle] = useState('');
+  const [newSlug, setNewSlug] = useState('');
   const [deleting, setDeleting] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [reusableLibrary, setReusableLibrary] = useState<ReusableLibrary>({
     blocks: [],
   });
+  const [availableRoles, setAvailableRoles] = useState<RoleDefinition[]>([]);
 
   async function selectPage(slug: string, force = false) {
-    if (
-      !force &&
-      dirty &&
-      !window.confirm("Discard the unsaved changes on this page?")
-    )
-      return;
-    setStatus({ kind: "loading", message: "Loading page…" });
+    if (!force && dirty && !window.confirm('Discard the unsaved changes on this page?')) return;
+    setStatus({ kind: 'loading', message: 'Loading page…' });
     try {
       const result = await loadPage(slug);
       setPage(result.data);
@@ -82,17 +65,16 @@ export default function AdminApp() {
       setSelectedId(result.data.blocks[0]?.id ?? null);
       setDirty(false);
       setStatus({
-        kind: "ready",
+        kind: 'ready',
         message:
-          result.mode === "local"
-            ? "Local page loaded."
-            : "Published page loaded. Saves publish immediately without redeploying.",
+          result.mode === 'local'
+            ? 'Local page loaded.'
+            : 'Published page loaded. Saves publish immediately without redeploying.',
       });
     } catch (error) {
       setStatus({
-        kind: "error",
-        message:
-          error instanceof Error ? error.message : "Page could not be loaded.",
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Page could not be loaded.',
       });
     }
   }
@@ -102,40 +84,35 @@ export default function AdminApp() {
     setPages(result.data);
     setCollectionRevision(result.revision);
     setMode(result.mode);
-    const slug =
-      preferredSlug ??
-      result.data.find((item) => item.slug === "home")?.slug ??
-      result.data[0]?.slug;
+    const slug = preferredSlug ?? result.data.find((item) => item.slug === 'home')?.slug ?? result.data[0]?.slug;
     if (slug) await selectPage(slug, true);
     else {
       setPage(null);
       setStatus({
-        kind: "ready",
-        message: "No pages yet. Create the first page.",
+        kind: 'ready',
+        message: 'No pages yet. Create the first page.',
       });
     }
   }
 
   useEffect(() => {
-    refreshPages().catch((error: Error) =>
-      setStatus({ kind: "error", message: error.message }),
-    );
+    refreshPages().catch((error: Error) => setStatus({ kind: 'error', message: error.message }));
   }, []);
   useEffect(() => {
-    loadGlobal("reusable-blocks")
+    loadGlobal('reusable-blocks')
       .then((result) => setReusableLibrary(result.data as ReusableLibrary))
       .catch(() => setReusableLibrary({ blocks: [] }));
   }, [section]);
+  useEffect(() => {
+    loadAuthorization()
+      .then((result) => setAvailableRoles(result.data.roles))
+      .catch(() => setAvailableRoles([]));
+  }, [section]);
 
-  const selectedIndex =
-    page?.blocks.findIndex((block) => block.id === selectedId) ?? -1;
-  const selectedBlock =
-    selectedIndex >= 0 ? page?.blocks[selectedIndex] : undefined;
+  const selectedIndex = page?.blocks.findIndex((block) => block.id === selectedId) ?? -1;
+  const selectedBlock = selectedIndex >= 0 ? page?.blocks[selectedIndex] : undefined;
   const selectedDefinition = useMemo(
-    () =>
-      catalog.blocks.find(
-        (definition) => definition.type === selectedBlock?.type,
-      ),
+    () => catalog.blocks.find((definition) => definition.type === selectedBlock?.type),
     [selectedBlock?.type],
   );
 
@@ -144,11 +121,8 @@ export default function AdminApp() {
     setSelectedId(nextSelectedId);
     setDirty(true);
     setStatus({
-      kind: "ready",
-      message:
-        mode === "remote"
-          ? "Unpublished page changes."
-          : "Unsaved local changes.",
+      kind: 'ready',
+      message: mode === 'remote' ? 'Unpublished page changes.' : 'Unsaved local changes.',
     });
   }
   function updateBlocks(blocks: BlockEnvelope[], nextSelectedId = selectedId) {
@@ -171,7 +145,7 @@ export default function AdminApp() {
     const block: BlockEnvelope = {
       id: newId(type),
       type,
-      status: "active",
+      status: 'active',
       content: structuredClone(definition.defaults),
     };
     updateBlocks([...page.blocks, block], block.id);
@@ -189,7 +163,7 @@ export default function AdminApp() {
     const blocks = [...page.blocks];
     blocks[selectedIndex] = {
       ...selectedBlock,
-      status: selectedBlock.status === "active" ? "hidden" : "active",
+      status: selectedBlock.status === 'active' ? 'hidden' : 'active',
     };
     updateBlocks(blocks);
   }
@@ -199,39 +173,27 @@ export default function AdminApp() {
       !selectedBlock ||
       selectedIndex < 0 ||
       !window.confirm(
-        `Delete this ${selectedDefinition?.editor.title ?? "block"}? The deletion is not published until you save.`,
+        `Delete this ${selectedDefinition?.editor.title ?? 'block'}? The deletion is not published until you save.`,
       )
     )
       return;
     const blocks = page.blocks.filter((block) => block.id !== selectedBlock.id);
-    updateBlocks(
-      blocks,
-      blocks[Math.min(selectedIndex, blocks.length - 1)]?.id ?? null,
-    );
+    updateBlocks(blocks, blocks[Math.min(selectedIndex, blocks.length - 1)]?.id ?? null);
   }
   function updateSelectedContent(event: IChangeEvent) {
     if (!page || selectedIndex < 0 || !selectedBlock) return;
     const blocks = [...page.blocks];
     if (selectedBlock.reusable) {
-      const source = reusableLibrary.blocks.find(
-        (entry) => entry.id === selectedBlock.reusable?.sourceId,
-      );
+      const source = reusableLibrary.blocks.find((entry) => entry.id === selectedBlock.reusable?.sourceId);
       const overrides = source
         ? Object.fromEntries(
             source.refinableFields
               .filter(
                 (field) =>
-                  JSON.stringify(
-                    (event.formData as Record<string, unknown>)[field],
-                  ) !==
-                  JSON.stringify(
-                    (source.content as Record<string, unknown>)[field],
-                  ),
+                  JSON.stringify((event.formData as Record<string, unknown>)[field]) !==
+                  JSON.stringify((source.content as Record<string, unknown>)[field]),
               )
-              .map((field) => [
-                field,
-                (event.formData as Record<string, unknown>)[field],
-              ]),
+              .map((field) => [field, (event.formData as Record<string, unknown>)[field]]),
           )
         : selectedBlock.reusable.overrides;
       blocks[selectedIndex] = {
@@ -239,15 +201,12 @@ export default function AdminApp() {
         content: event.formData,
         reusable: { ...selectedBlock.reusable, overrides },
       };
-    } else
-      blocks[selectedIndex] = { ...selectedBlock, content: event.formData };
+    } else blocks[selectedIndex] = { ...selectedBlock, content: event.formData };
     updateBlocks(blocks);
   }
   function attachReusable(sourceId: string) {
     if (!page || selectedIndex < 0 || !selectedBlock) return;
-    const source = reusableLibrary.blocks.find(
-      (entry) => entry.id === sourceId,
-    );
+    const source = reusableLibrary.blocks.find((entry) => entry.id === sourceId);
     if (!source) return;
     const blocks = [...page.blocks];
     blocks[selectedIndex] = {
@@ -273,7 +232,7 @@ export default function AdminApp() {
 
   async function save() {
     if (!page || !dirty) return;
-    setStatus({ kind: "saving", message: "Validating and saving page…" });
+    setStatus({ kind: 'saving', message: 'Validating and saving page…' });
     try {
       const result = await savePage(page, revision, crypto.randomUUID());
       setPage(result.data);
@@ -293,16 +252,16 @@ export default function AdminApp() {
         ),
       );
       setStatus({
-        kind: "saved",
+        kind: 'saved',
         message:
-          result.mode === "remote"
-            ? "Page saved and published. Refresh its public URL to see the latest content."
-            : "Saved locally without a Git commit.",
+          result.mode === 'remote'
+            ? 'Page saved and published. Refresh its public URL to see the latest content.'
+            : 'Saved locally without a Git commit.',
       });
     } catch (error) {
       setStatus({
-        kind: "error",
-        message: error instanceof Error ? error.message : "Save failed.",
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Save failed.',
       });
     }
   }
@@ -315,48 +274,43 @@ export default function AdminApp() {
     const candidate: PageDocument = {
       id: `page-${crypto.randomUUID()}`,
       slug,
-      status: "published",
+      status: 'published',
       title: newTitle.trim(),
-      seo: { title: "", description: "", socialImageAlt: "", noIndex: false },
+      seo: { title: '', description: '', socialImageAlt: '', noIndex: false },
+      access: { readRoles: ['public'], writeRoles: ['admin'] },
       blocks: firstBlock
         ? [
             {
               id: newId(firstBlock.type),
               type: firstBlock.type,
-              status: "active",
+              status: 'active',
               content: structuredClone(firstBlock.defaults),
             },
           ]
         : [],
     };
-    setStatus({ kind: "saving", message: "Validating and creating page…" });
+    setStatus({ kind: 'saving', message: 'Validating and creating page…' });
     try {
-      const result = await createPage(
-        candidate,
-        collectionRevision,
-        crypto.randomUUID(),
-      );
+      const result = await createPage(candidate, collectionRevision, crypto.randomUUID());
       setCreating(false);
-      setNewTitle("");
-      setNewSlug("");
+      setNewTitle('');
+      setNewSlug('');
       await refreshPages(result.data.slug);
       setStatus({
-        kind: "saved",
-        message:
-          "Page created and published. Add it to Navigation when it should appear in the menu.",
+        kind: 'saved',
+        message: 'Page created and published. Add it to Navigation when it should appear in the menu.',
       });
     } catch (error) {
       setStatus({
-        kind: "error",
-        message:
-          error instanceof Error ? error.message : "Page creation failed.",
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Page creation failed.',
       });
     }
   }
 
   async function toggleArchived() {
     if (!page) return;
-    const archiving = page.status === "published";
+    const archiving = page.status === 'published';
     if (
       archiving &&
       !window.confirm(
@@ -364,43 +318,37 @@ export default function AdminApp() {
       )
     )
       return;
-    markPage({ ...page, status: archiving ? "archived" : "published" });
+    markPage({ ...page, status: archiving ? 'archived' : 'published' });
   }
 
   async function permanentlyDeletePage() {
-    if (!page || page.status !== "archived" || page.slug === "home") return;
+    if (!page || page.status !== 'archived' || page.slug === 'home') return;
     setStatus({
-      kind: "saving",
-      message: "Checking dependencies and permanently deleting page…",
+      kind: 'saving',
+      message: 'Checking dependencies and permanently deleting page…',
     });
     try {
       await deletePage(page.slug, revision, deleteConfirmation);
       setDeleting(false);
-      setDeleteConfirmation("");
+      setDeleteConfirmation('');
       setPage(null);
       setDirty(false);
       await refreshPages();
       setStatus({
-        kind: "saved",
+        kind: 'saved',
         message: `“${page.title}” was permanently deleted. Git history remains the emergency recovery path.`,
       });
     } catch (error) {
       setStatus({
-        kind: "error",
-        message:
-          error instanceof Error ? error.message : "Permanent deletion failed.",
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Permanent deletion failed.',
       });
     }
   }
 
   function chooseSection(next: Section) {
-    if (
-      dirty &&
-      next !== "pages" &&
-      !window.confirm("Discard the unsaved page changes?")
-    )
-      return;
-    if (next !== "pages") setDirty(false);
+    if (dirty && next !== 'pages' && !window.confirm('Discard the unsaved page changes?')) return;
+    if (next !== 'pages') setDirty(false);
     setSection(next);
   }
 
@@ -412,62 +360,65 @@ export default function AdminApp() {
           <a className="admin-brand" href="/">
             Astro CMS
           </a>
-          <p>
-            {mode === "remote"
-              ? "Remote content workspace"
-              : "Local content workspace"}
-          </p>
+          <p>{mode === 'remote' ? 'Remote content workspace' : 'Local content workspace'}</p>
         </div>
         <div className="admin-header__actions">
           <a
             className="button button--secondary"
-            href={page?.slug === "home" ? "/" : `/${page?.slug ?? ""}`}
+            href={
+              page?.slug === 'home'
+                ? '/'
+                : page?.access.readRoles.includes('public')
+                  ? `/${page?.slug ?? ''}`
+                  : `/members/${page?.slug ?? ''}`
+            }
             target="_blank"
             rel="noreferrer"
           >
             View page
           </a>
-          {section === "pages" && (
+          {section === 'pages' && (
             <button
               className="button button--primary"
               type="button"
               onClick={save}
-              disabled={!dirty || status.kind === "saving"}
+              disabled={!dirty || status.kind === 'saving'}
             >
-              {status.kind === "saving"
-                ? "Working…"
-                : mode === "remote"
-                  ? "Save page"
-                  : "Save locally"}
+              {status.kind === 'saving' ? 'Working…' : mode === 'remote' ? 'Save page' : 'Save locally'}
             </button>
           )}
         </div>
       </header>
       <nav className="admin-sections" aria-label="Content areas">
-        <button
-          aria-current={section === "pages" ? "page" : undefined}
-          onClick={() => chooseSection("pages")}
-        >
+        <button aria-current={section === 'pages' ? 'page' : undefined} onClick={() => chooseSection('pages')}>
           Pages
         </button>
         {catalog.globals.map((item) => (
           <button
             key={item.key}
-            aria-current={section === item.key ? "page" : undefined}
+            aria-current={section === item.key ? 'page' : undefined}
             onClick={() => chooseSection(item.key)}
           >
             {item.title}
           </button>
         ))}
+        <button
+          aria-current={section === 'authorization' ? 'page' : undefined}
+          onClick={() => chooseSection('authorization')}
+        >
+          Users and roles
+        </button>
       </nav>
-      {globalDefinition ? (
+      {section === 'authorization' ? (
+        <AuthorizationEditor />
+      ) : globalDefinition ? (
         <GlobalEditor definition={globalDefinition} />
       ) : (
         <>
           <div
             className="admin-status"
             data-kind={status.kind}
-            role={status.kind === "error" ? "alert" : "status"}
+            role={status.kind === 'error' ? 'alert' : 'status'}
             aria-live="polite"
           >
             {status.message}
@@ -484,7 +435,7 @@ export default function AdminApp() {
                   type="button"
                   onClick={() => setCreating((value) => !value)}
                 >
-                  {creating ? "Cancel" : "New page"}
+                  {creating ? 'Cancel' : 'New page'}
                 </button>
               </div>
               {creating && (
@@ -497,8 +448,7 @@ export default function AdminApp() {
                       value={newTitle}
                       onChange={(event) => {
                         setNewTitle(event.target.value);
-                        if (!newSlug)
-                          setNewSlug(slugFromTitle(event.target.value));
+                        if (!newSlug) setNewSlug(slugFromTitle(event.target.value));
                       }}
                     />
                   </label>
@@ -508,21 +458,11 @@ export default function AdminApp() {
                       required
                       pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
                       value={newSlug}
-                      onChange={(event) =>
-                        setNewSlug(slugFromTitle(event.target.value))
-                      }
+                      onChange={(event) => setNewSlug(slugFromTitle(event.target.value))}
                     />
-                    <small>
-                      {newSlug
-                        ? `Public URL: /${newSlug}`
-                        : "Lowercase letters, numbers, and hyphens."}
-                    </small>
+                    <small>{newSlug ? `Public URL: /${newSlug}` : 'Lowercase letters, numbers, and hyphens.'}</small>
                   </label>
-                  <button
-                    className="button button--primary"
-                    type="submit"
-                    disabled={!newTitle.trim() || !newSlug}
-                  >
+                  <button className="button button--primary" type="submit" disabled={!newTitle.trim() || !newSlug}>
                     Create and publish
                   </button>
                 </form>
@@ -532,20 +472,14 @@ export default function AdminApp() {
                   <li key={item.id}>
                     <button
                       type="button"
-                      aria-current={
-                        page?.slug === item.slug ? "page" : undefined
-                      }
+                      aria-current={page?.slug === item.slug ? 'page' : undefined}
                       onClick={() => selectPage(item.slug)}
                     >
                       <span>
                         <strong>{item.title}</strong>
-                        <small>/{item.slug === "home" ? "" : item.slug}</small>
+                        <small>/{item.slug === 'home' ? '' : item.slug}</small>
                       </span>
-                      <span
-                        className={`status-pill status-pill--${item.status}`}
-                      >
-                        {item.status}
-                      </span>
+                      <span className={`status-pill status-pill--${item.status}`}>{item.status}</span>
                     </button>
                   </li>
                 ))}
@@ -553,32 +487,23 @@ export default function AdminApp() {
             </aside>
             {page ? (
               <div className="page-editor-area">
-                <section
-                  className="page-settings"
-                  aria-labelledby="page-settings-heading"
-                >
+                <section className="page-settings" aria-labelledby="page-settings-heading">
                   <div className="admin-editor__heading">
                     <div>
                       <p className="admin-kicker">Page details</p>
                       <h2 id="page-settings-heading">{page.title}</h2>
                       <p>
-                        The slug is permanent. Archive a page to remove it from
-                        the public site while retaining Git history.
+                        The slug is permanent. Archive a page to remove it from the public site while retaining Git
+                        history.
                       </p>
                     </div>
                     <button
-                      className={
-                        page.status === "published"
-                          ? "button danger-action"
-                          : "button button--secondary"
-                      }
+                      className={page.status === 'published' ? 'button danger-action' : 'button button--secondary'}
                       type="button"
-                      disabled={page.slug === "home"}
+                      disabled={page.slug === 'home'}
                       onClick={toggleArchived}
                     >
-                      {page.status === "published"
-                        ? "Archive page"
-                        : "Restore page"}
+                      {page.status === 'published' ? 'Archive page' : 'Restore page'}
                     </button>
                   </div>
                   <div className="page-fields">
@@ -587,21 +512,13 @@ export default function AdminApp() {
                       <input
                         value={page.title}
                         maxLength={120}
-                        onChange={(event) =>
-                          markPage({ ...page, title: event.target.value })
-                        }
+                        onChange={(event) => markPage({ ...page, title: event.target.value })}
                       />
                     </label>
                     <label>
                       URL slug
-                      <input
-                        value={page.slug}
-                        disabled
-                        aria-describedby="slug-help"
-                      />
-                      <small id="slug-help">
-                        Page slugs cannot be changed after creation.
-                      </small>
+                      <input value={page.slug} disabled aria-describedby="slug-help" />
+                      <small id="slug-help">Page slugs cannot be changed after creation.</small>
                     </label>
                     <label>
                       SEO title
@@ -635,7 +552,7 @@ export default function AdminApp() {
                     <label>
                       Social image URL
                       <input
-                        value={page.seo.socialImage ?? ""}
+                        value={page.seo.socialImage ?? ''}
                         onChange={(event) =>
                           markPage({
                             ...page,
@@ -680,41 +597,98 @@ export default function AdminApp() {
                       />
                       <span>Hide this page from search-engine indexes</span>
                     </label>
+                    <fieldset className="field-wide access-policy">
+                      <legend>Who can read this page?</legend>
+                      <p>Visitors need at least one selected role. Anyone who can write can also read.</p>
+                      <div className="role-options">
+                        {(availableRoles.length
+                          ? availableRoles
+                          : [
+                              { key: 'public', name: 'Public' },
+                              { key: 'authenticated', name: 'Authenticated' },
+                              { key: 'member', name: 'Member' },
+                              { key: 'editor', name: 'Editor' },
+                              { key: 'page-editor', name: 'Page editor' },
+                              { key: 'admin', name: 'Administrator' },
+                            ]
+                        ).map((role) => (
+                          <label className="checkbox-field" key={`read-${role.key}`}>
+                            <input
+                              type="checkbox"
+                              checked={page.access.readRoles.includes(role.key)}
+                              onChange={(event) =>
+                                markPage({
+                                  ...page,
+                                  access: {
+                                    ...page.access,
+                                    readRoles: event.target.checked
+                                      ? [...page.access.readRoles, role.key]
+                                      : page.access.readRoles.filter((key) => key !== role.key),
+                                  },
+                                })
+                              }
+                            />
+                            <span>{role.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <fieldset className="field-wide access-policy">
+                      <legend>Who can edit this page?</legend>
+                      <p>Write access automatically includes read access for this page.</p>
+                      <div className="role-options">
+                        {(availableRoles.length
+                          ? availableRoles.filter((role) => role.key !== 'public' && role.key !== 'authenticated')
+                          : [
+                              { key: 'member', name: 'Member' },
+                              { key: 'editor', name: 'Editor' },
+                              { key: 'page-editor', name: 'Page editor' },
+                              { key: 'admin', name: 'Administrator' },
+                            ]
+                        ).map((role) => (
+                          <label className="checkbox-field" key={`write-${role.key}`}>
+                            <input
+                              type="checkbox"
+                              checked={page.access.writeRoles.includes(role.key)}
+                              onChange={(event) =>
+                                markPage({
+                                  ...page,
+                                  access: {
+                                    ...page.access,
+                                    writeRoles: event.target.checked
+                                      ? [...page.access.writeRoles, role.key]
+                                      : page.access.writeRoles.filter((key) => key !== role.key),
+                                  },
+                                })
+                              }
+                            />
+                            <span>{role.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
                   </div>
-                  {page.status === "archived" && page.slug !== "home" && (
-                    <section
-                      className="delete-zone"
-                      aria-labelledby="delete-page-heading"
-                    >
+                  {page.status === 'archived' && page.slug !== 'home' && (
+                    <section className="delete-zone" aria-labelledby="delete-page-heading">
                       <div>
-                        <h3 id="delete-page-heading">
-                          Permanently delete page
-                        </h3>
+                        <h3 id="delete-page-heading">Permanently delete page</h3>
                         <p>
-                          This removes the page and its validation record after
-                          dependency checks. The CMS cannot undo it; recovery
-                          requires Git history.
+                          This removes the page and its validation record after dependency checks. The CMS cannot undo
+                          it; recovery requires Git history.
                         </p>
                       </div>
                       {!deleting ? (
-                        <button
-                          className="button danger-action"
-                          type="button"
-                          onClick={() => setDeleting(true)}
-                        >
+                        <button className="button danger-action" type="button" onClick={() => setDeleting(true)}>
                           Delete permanently…
                         </button>
                       ) : (
                         <div className="delete-confirmation">
                           <label>
-                            Type <strong>{page.slug}</strong> or the exact page
-                            title to confirm
+                            Type <strong>{page.slug}</strong> or the exact page title to confirm
                             <input
                               autoFocus
                               value={deleteConfirmation}
-                              onChange={(event) =>
-                                setDeleteConfirmation(event.target.value)
-                              }
+                              onChange={(event) => setDeleteConfirmation(event.target.value)}
                             />
                           </label>
                           <div className="editor-actions">
@@ -723,7 +697,7 @@ export default function AdminApp() {
                               type="button"
                               onClick={() => {
                                 setDeleting(false);
-                                setDeleteConfirmation("");
+                                setDeleteConfirmation('');
                               }}
                             >
                               Cancel
@@ -732,8 +706,7 @@ export default function AdminApp() {
                               className="button danger-action"
                               type="button"
                               disabled={
-                                deleteConfirmation.trim() !== page.slug &&
-                                deleteConfirmation.trim() !== page.title
+                                deleteConfirmation.trim() !== page.slug && deleteConfirmation.trim() !== page.title
                               }
                               onClick={permanentlyDeletePage}
                             >
@@ -746,10 +719,7 @@ export default function AdminApp() {
                   )}
                 </section>
                 <div className="admin-workspace">
-                  <aside
-                    className="admin-sidebar"
-                    aria-labelledby="blocks-heading"
-                  >
+                  <aside className="admin-sidebar" aria-labelledby="blocks-heading">
                     <div className="admin-sidebar__heading">
                       <div>
                         <p className="admin-kicker">Page content</p>
@@ -760,16 +730,12 @@ export default function AdminApp() {
                         <select
                           value=""
                           onChange={(event) => {
-                            if (event.target.value)
-                              addBlock(event.target.value);
+                            if (event.target.value) addBlock(event.target.value);
                           }}
                         >
                           <option value="">Choose…</option>
                           {catalog.blocks.map((definition) => (
-                            <option
-                              key={definition.type}
-                              value={definition.type}
-                            >
+                            <option key={definition.type} value={definition.type}>
                               {definition.editor.title}
                             </option>
                           ))}
@@ -778,26 +744,20 @@ export default function AdminApp() {
                     </div>
                     <ol className="block-list">
                       {page.blocks.map((block, index) => {
-                        const definition = catalog.blocks.find(
-                          (item) => item.type === block.type,
-                        );
+                        const definition = catalog.blocks.find((item) => item.type === block.type);
                         return (
                           <li key={block.id}>
                             <button
                               type="button"
                               className="block-list__item"
-                              aria-current={
-                                block.id === selectedId ? "true" : undefined
-                              }
+                              aria-current={block.id === selectedId ? 'true' : undefined}
                               onClick={() => setSelectedId(block.id)}
                             >
                               <span>{index + 1}</span>
                               <span>
-                                <strong>
-                                  {definition?.editor.title ?? block.type}
-                                </strong>
+                                <strong>{definition?.editor.title ?? block.type}</strong>
                                 <small>
-                                  {block.status === "hidden" ? "Hidden · " : ""}
+                                  {block.status === 'hidden' ? 'Hidden · ' : ''}
                                   {definition?.editor.description}
                                 </small>
                               </span>
@@ -807,58 +767,33 @@ export default function AdminApp() {
                       })}
                     </ol>
                   </aside>
-                  <section
-                    className="admin-editor"
-                    aria-labelledby="editor-heading"
-                  >
+                  <section className="admin-editor" aria-labelledby="editor-heading">
                     {selectedBlock && selectedDefinition ? (
                       <>
                         <div className="admin-editor__heading">
                           <div>
-                            <p className="admin-kicker">
-                              Block {selectedIndex + 1}
-                            </p>
-                            <h2 id="editor-heading">
-                              {selectedDefinition.editor.title}
-                            </h2>
+                            <p className="admin-kicker">Block {selectedIndex + 1}</p>
+                            <h2 id="editor-heading">{selectedDefinition.editor.title}</h2>
                             <p>{selectedDefinition.editor.description}</p>
                           </div>
-                          <div
-                            className="editor-actions"
-                            aria-label="Block actions"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => moveSelected(-1)}
-                              disabled={selectedIndex === 0}
-                            >
+                          <div className="editor-actions" aria-label="Block actions">
+                            <button type="button" onClick={() => moveSelected(-1)} disabled={selectedIndex === 0}>
                               Move up
                             </button>
                             <button
                               type="button"
                               onClick={() => moveSelected(1)}
-                              disabled={
-                                selectedIndex === page.blocks.length - 1
-                              }
+                              disabled={selectedIndex === page.blocks.length - 1}
                             >
                               Move down
                             </button>
-                            <button
-                              type="button"
-                              onClick={toggleSelectedVisibility}
-                            >
-                              {selectedBlock.status === "active"
-                                ? "Hide"
-                                : "Show"}
+                            <button type="button" onClick={toggleSelectedVisibility}>
+                              {selectedBlock.status === 'active' ? 'Hide' : 'Show'}
                             </button>
                             <button type="button" onClick={duplicateSelected}>
                               Duplicate
                             </button>
-                            <button
-                              className="danger-action"
-                              type="button"
-                              onClick={deleteSelected}
-                            >
+                            <button className="danger-action" type="button" onClick={deleteSelected}>
                               Delete
                             </button>
                           </div>
@@ -868,26 +803,18 @@ export default function AdminApp() {
                             <>
                               <div>
                                 <strong>
-                                  Linked to{" "}
-                                  {reusableLibrary.blocks.find(
-                                    (entry) =>
-                                      entry.id ===
-                                      selectedBlock.reusable?.sourceId,
-                                  )?.name ?? selectedBlock.reusable.sourceId}
+                                  Linked to{' '}
+                                  {reusableLibrary.blocks.find((entry) => entry.id === selectedBlock.reusable?.sourceId)
+                                    ?.name ?? selectedBlock.reusable.sourceId}
                                 </strong>
                                 <p>
-                                  Shared changes propagate here.{" "}
-                                  {Object.keys(selectedBlock.reusable.overrides)
-                                    .length
-                                    ? `Refined fields: ${Object.keys(selectedBlock.reusable.overrides).join(", ")}.`
-                                    : "This instance has no refinements."}
+                                  Shared changes propagate here.{' '}
+                                  {Object.keys(selectedBlock.reusable.overrides).length
+                                    ? `Refined fields: ${Object.keys(selectedBlock.reusable.overrides).join(', ')}.`
+                                    : 'This instance has no refinements.'}
                                 </p>
                               </div>
-                              <button
-                                className="button button--secondary"
-                                type="button"
-                                onClick={detachReusable}
-                              >
+                              <button className="button button--secondary" type="button" onClick={detachReusable}>
                                 Detach copy
                               </button>
                             </>
@@ -896,10 +823,7 @@ export default function AdminApp() {
                               Use reusable block
                               <select
                                 value=""
-                                onChange={(event) =>
-                                  event.target.value &&
-                                  attachReusable(event.target.value)
-                                }
+                                onChange={(event) => event.target.value && attachReusable(event.target.value)}
                               >
                                 <option value="">Standalone block</option>
                                 {reusableLibrary.blocks.map((entry) => (
@@ -913,16 +837,13 @@ export default function AdminApp() {
                         </div>
                         <Form
                           schema={selectedDefinition.schema}
-                          formData={
-                            resolveReusableBlock(selectedBlock, reusableLibrary)
-                              .content
-                          }
+                          formData={resolveReusableBlock(selectedBlock, reusableLibrary).content}
                           validator={validator}
                           onChange={updateSelectedContent}
                           liveValidate="onBlur"
                           showErrorList={false}
                           uiSchema={{
-                            "ui:submitButtonOptions": { norender: true },
+                            'ui:submitButtonOptions': { norender: true },
                           }}
                         />
                       </>

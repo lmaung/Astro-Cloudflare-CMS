@@ -1,31 +1,32 @@
-import { describe, expect, it } from "vitest";
-import { pageSchema } from "./content";
+import { describe, expect, it } from 'vitest';
+import { pageSchema } from './content';
 
 const page = {
-  id: "home",
-  slug: "home",
-  status: "published",
-  title: "Home",
+  id: 'home',
+  slug: 'home',
+  status: 'published',
+  title: 'Home',
+  access: { readRoles: ['public'], writeRoles: ['admin'] },
   blocks: [],
 };
 
-describe("page SEO", () => {
-  it("defaults indexing and accepts an accessible social image", () => {
+describe('page SEO', () => {
+  it('defaults indexing and accepts an accessible social image', () => {
     expect(pageSchema.parse(page).seo.noIndex).toBe(false);
     expect(
       pageSchema.parse({
         ...page,
         seo: {
-          socialImage: "/media/card.jpg",
-          socialImageAlt: "People collaborating",
+          socialImage: '/media/card.jpg',
+          socialImageAlt: 'People collaborating',
         },
       }).seo.socialImage,
-    ).toBe("/media/card.jpg");
+    ).toBe('/media/card.jpg');
   });
 
-  it("requires alternative text when a social image is configured", () => {
-    expect(() =>
-      pageSchema.parse({ ...page, seo: { socialImage: "/media/card.jpg" } }),
-    ).toThrow("Describe the social image");
+  it('requires alternative text when a social image is configured', () => {
+    expect(() => pageSchema.parse({ ...page, seo: { socialImage: '/media/card.jpg' } })).toThrow(
+      'Describe the social image',
+    );
   });
 });

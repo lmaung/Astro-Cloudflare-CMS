@@ -61,12 +61,24 @@ frontend-only.
 - **Reorder:** Navigation array order controls menu order; it does not control
   page identity or prevent unlisted landing pages.
 
+## Authorization
+
+Pages can be public or restricted by additive read/write roles. Cloudflare
+Access authenticates protected requests, while the private site-specific
+content repository stores user-to-role assignments. See [Authentication and role authorization](docs/AUTHORIZATION.md)
+for role semantics, protected routes, GitHub storage, and the
+admin workflow.
+
+Every customer or production content-repository clone must be private before
+user identities are added. Only explicitly approved operator-controlled demo
+identities may appear in the public reference content repository.
+
 ## Deployment setup
 
 Follow [GitHub and Cloudflare Pages Setup](docs/GITHUB-CLOUDFLARE-SETUP.md) for
 the repository permissions, build settings, content checkout, token policy,
-secrets, and verification checklist. The token is used only by the protected
-remote editor; the public build does not require it.
+secrets, and verification checklist. For a private content repository, the same
+content-scoped token authenticates both the build checkout and protected editor.
 
 See [Gate 4 content composition](docs/GATE-4-CONTENT-COMPOSITION.md) for the
 detailed footer, registered layouts, reusable-block workflow, media metadata,

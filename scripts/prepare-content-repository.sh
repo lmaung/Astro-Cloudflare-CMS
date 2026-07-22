@@ -16,6 +16,11 @@ if [ -e "$content_dir" ]; then
 fi
 
 echo "Fetching content repository ref: $content_ref"
-git clone --filter=blob:none --no-checkout "$content_repo" "$content_dir"
-git -C "$content_dir" fetch --depth=1 origin "$content_ref"
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+  GIT_ASKPASS="$(dirname "$0")/git-askpass.sh" GIT_TERMINAL_PROMPT=0 git clone --filter=blob:none --no-checkout "$content_repo" "$content_dir"
+  GIT_ASKPASS="$(dirname "$0")/git-askpass.sh" GIT_TERMINAL_PROMPT=0 git -C "$content_dir" fetch --depth=1 origin "$content_ref"
+else
+  git clone --filter=blob:none --no-checkout "$content_repo" "$content_dir"
+  git -C "$content_dir" fetch --depth=1 origin "$content_ref"
+fi
 git -C "$content_dir" checkout --detach FETCH_HEAD

@@ -8,17 +8,22 @@ import { LocalFilesystemProvider } from './local-filesystem';
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), 'astro-cms-content-'));
   await mkdir(path.join(root, 'pages'));
-  await writeFile(
-    path.join(root, 'content-manifest.json'),
-    JSON.stringify({ id: 'fixture-site', schemaVersion: '1' }),
-  );
+  await writeFile(path.join(root, 'content-manifest.json'), JSON.stringify({ id: 'fixture-site', schemaVersion: '1' }));
   const page = {
     id: 'page-home',
     slug: 'home',
     status: 'published' as const,
     title: 'Fixture',
+    access: { readRoles: ['public'], writeRoles: ['admin'] },
     seo: { title: '', description: '', socialImageAlt: '', noIndex: false },
-    blocks: [{ id: 'hero', type: heroDefinition.type, status: 'active' as const, content: heroDefinition.defaults() }],
+    blocks: [
+      {
+        id: 'hero',
+        type: heroDefinition.type,
+        status: 'active' as const,
+        content: heroDefinition.defaults(),
+      },
+    ],
   };
   await writeFile(path.join(root, 'pages/home.json'), `${JSON.stringify(page, null, 2)}\n`);
   return { root, page };
