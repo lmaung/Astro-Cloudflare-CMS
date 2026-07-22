@@ -70,7 +70,8 @@ button, select, a { -webkit-tap-highlight-color: transparent; }
 .button--secondary { background: var(--color-bg-surface); border-color: var(--color-border-default); }
 .button--secondary:hover { background: var(--color-bg-subtle); }
 .button:disabled { cursor: not-allowed; opacity: 0.55; }
-.admin-status { min-height: 2.75rem; display: flex; align-items: center; padding: 0.5rem clamp(1rem, 3vw, 2rem); background: var(--color-bg-subtle); border-bottom: 1px solid var(--color-border-default); color: var(--color-text-secondary); font-size: 0.875rem; }
+.admin-status { min-height: 2.75rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.5rem clamp(1rem, 3vw, 2rem); background: var(--color-bg-subtle); border-bottom: 1px solid var(--color-border-default); color: var(--color-text-secondary); font-size: 0.875rem; }
+.admin-status a { min-height: 44px; display: inline-flex; align-items: center; color: var(--color-action-primary); font-weight: 700; }
 .admin-status[data-kind="error"] { background: #fef2f2; color: var(--color-danger); }
 .admin-status[data-kind="saved"] { background: #ecfdf5; color: var(--color-success); }
 .admin-workspace { width: min(100%, 112rem); margin-inline: auto; display: grid; grid-template-columns: minmax(17rem, 23rem) minmax(0, 1fr); min-height: calc(100vh - 7.75rem); }

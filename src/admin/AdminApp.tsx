@@ -4,8 +4,8 @@ import validator from '@rjsf/validator-ajv8';
 import { useEffect, useMemo, useState } from 'react';
 import catalogSource from '../../generated/schemas/component-catalog.json';
 import type { BlockEnvelope, PageDocument } from '../domain/content';
-import { loadLocalPage, saveLocalPage } from './local-gateway';
-import type { Catalog } from './types';
+import { loadPage, savePage } from './local-gateway';
+import type { Catalog, EditorMode, PullRequestSubmission } from './types';
 
 const catalog = catalogSource as Catalog;
 
@@ -25,15 +25,25 @@ export default function AdminApp() {
   const [revision, setRevision] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [status, setStatus] = useState<Status>({ kind: 'loading', message: 'Loading local content…' });
+  const [mode, setMode] = useState<EditorMode | null>(null);
+  const [changeId, setChangeId] = useState(() => crypto.randomUUID());
+  const [submission, setSubmission] = useState<PullRequestSubmission | null>(null);
+  const [status, setStatus] = useState<Status>({ kind: 'loading', message: 'Loading content…' });
 
   useEffect(() => {
-    loadLocalPage()
+    loadPage()
       .then((result) => {
         setPage(result.data);
         setRevision(result.revision);
+        setMode(result.mode);
         setSelectedId(result.data.blocks[0]?.id ?? null);
-        setStatus({ kind: 'ready', message: 'Local content loaded. Changes are not committed automatically.' });
+        setStatus({
+          kind: 'ready',
+          message:
+            result.mode === 'local'
+              ? 'Local content loaded. Changes are not committed automatically.'
+              : 'Published content loaded. Submissions create a content pull request and do not deploy the site.',
+        });
       })
       .catch((error: Error) => setStatus({ kind: 'error', message: error.message }));
   }, []);
@@ -50,7 +60,8 @@ export default function AdminApp() {
     setPage({ ...page, blocks });
     setSelectedId(nextSelectedId);
     setDirty(true);
-    setStatus({ kind: 'ready', message: 'Unsaved local changes.' });
+    setSubmission(null);
+    setStatus({ kind: 'ready', message: mode === 'remote' ? 'Unsubmitted content changes.' : 'Unsaved local changes.' });
   }
 
   function moveSelected(offset: number) {
@@ -102,13 +113,25 @@ export default function AdminApp() {
 
   async function save() {
     if (!page || !dirty) return;
-    setStatus({ kind: 'saving', message: 'Saving to the sibling content repository…' });
+    setStatus({
+      kind: 'saving',
+      message: mode === 'remote' ? 'Creating a content pull request…' : 'Saving to the sibling content repository…',
+    });
     try {
-      const result = await saveLocalPage(page, revision);
+      const result = await savePage(page, revision, changeId);
       setPage(result.data);
       setRevision(result.revision);
+      setMode(result.mode);
       setDirty(false);
-      setStatus({ kind: 'saved', message: 'Saved locally. No Git commit was created.' });
+      setSubmission(result.submission ?? null);
+      setChangeId(crypto.randomUUID());
+      setStatus({
+        kind: 'saved',
+        message:
+          result.mode === 'remote'
+            ? 'Content pull request created. The frontend was not changed or deployed.'
+            : 'Saved locally. No Git commit was created.',
+      });
     } catch (error) {
       setStatus({ kind: 'error', message: error instanceof Error ? error.message : 'Save failed.' });
     }
@@ -129,18 +152,19 @@ export default function AdminApp() {
       <header className="admin-header">
         <div>
           <a className="admin-brand" href="/">Astro CMS</a>
-          <p>Local vertical slice</p>
+          <p>{mode === 'remote' ? 'Remote content workspace' : 'Local vertical slice'}</p>
         </div>
         <div className="admin-header__actions">
           <a className="button button--secondary" href="/" target="_blank" rel="noreferrer">View site</a>
           <button className="button button--primary" type="button" onClick={save} disabled={!dirty || status.kind === 'saving'}>
-            {status.kind === 'saving' ? 'Saving…' : 'Save locally'}
+            {status.kind === 'saving' ? 'Working…' : mode === 'remote' ? 'Create content PR' : 'Save locally'}
           </button>
         </div>
       </header>
 
       <div className="admin-status" data-kind={status.kind} role={status.kind === 'error' ? 'alert' : 'status'} aria-live="polite">
-        {status.message}
+        <span>{status.message}</span>
+        {submission && <a href={submission.url} target="_blank" rel="noreferrer">View pull request #{submission.number}</a>}
       </div>
 
       <div className="admin-workspace">

@@ -3,7 +3,7 @@ import type { Plugin } from 'vite';
 import { ProviderError } from './contracts';
 import { LocalFilesystemProvider } from './local-filesystem';
 
-const endpoint = '/api/local-content/home';
+const endpoint = '/api/admin/content/home';
 
 function send(response: import('node:http').ServerResponse, status: number, body: unknown): void {
   response.statusCode = status;
@@ -38,7 +38,7 @@ export function localContentPlugin(): Plugin {
         if (request.url !== endpoint) return next();
         try {
           if (request.method === 'GET') {
-            send(response, 200, await provider.readPage('home'));
+            send(response, 200, { ...(await provider.readPage('home')), mode: 'local' });
             return;
           }
           if (request.method === 'PUT') {
@@ -50,7 +50,7 @@ export function localContentPlugin(): Plugin {
             send(
               response,
               200,
-              await provider.writePage(payload.data as never, payload.expectedRevision),
+              { ...(await provider.writePage(payload.data as never, payload.expectedRevision)), mode: 'local' },
             );
             return;
           }

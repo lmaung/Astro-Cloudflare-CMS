@@ -29,9 +29,11 @@ repository must contain `content-manifest.json` and `pages/home.json`.
 Local saves update the sibling content file atomically and never commit it.
 The production build contains no filesystem write endpoint.
 
-Remote CMS saves likewise write only to the content repository. They do not
-modify the frontend repository or trigger a Cloudflare Pages deployment; the
-published static site changes only after a deliberate frontend deployment.
+Remote CMS submissions use a Cloudflare Access-protected Pages Function and
+short-lived GitHub App installation token to create a draft pull request only in
+the content repository. They do not modify the frontend repository or trigger a
+Cloudflare Pages deployment; the published static site changes only after a
+deliberate frontend deployment.
 
 ## Deployment setup
 

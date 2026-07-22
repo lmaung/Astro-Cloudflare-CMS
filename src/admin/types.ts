@@ -14,7 +14,18 @@ export type Catalog = {
   blocks: CatalogBlock[];
 };
 
-export type LocalPageResponse = {
+export type EditorMode = 'local' | 'remote';
+
+export type PullRequestSubmission = {
+  kind: 'pull_request';
+  number: number;
+  url: string;
+  branch: string;
+};
+
+export type PageResponse = {
   data: PageDocument;
   revision: string;
+  mode: EditorMode;
+  submission?: PullRequestSubmission;
 };
