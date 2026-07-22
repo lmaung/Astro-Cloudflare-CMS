@@ -12,7 +12,7 @@ export type CatalogBlock = {
 export type Catalog = {
   generated: true;
   blocks: CatalogBlock[];
-  globals: Array<{ key: 'site-settings' | 'navigation'; title: string; description: string; schema: RJSFSchema }>;
+  globals: Array<{ key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library'; title: string; description: string; schema: RJSFSchema }>;
 };
 
 export type EditorMode = 'local' | 'remote';
@@ -31,3 +31,4 @@ export type PageResponse = {
 
 export type PageSummary = Pick<PageDocument, 'id' | 'slug' | 'status' | 'title'>;
 export type PageListResponse = { data: PageSummary[]; revision: string; mode: EditorMode };
+export type DeletePageResponse = { deleted: true; slug: string; collectionRevision: string; mode: EditorMode; submission?: SaveSubmission };

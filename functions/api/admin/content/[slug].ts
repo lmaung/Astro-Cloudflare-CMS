@@ -1,6 +1,6 @@
 import { verifyCloudflareAccess, requireSameOrigin, AuthorizationError } from '../../../lib/access';
 import { ConfigurationError, readAdminConfig, type AdminEnv } from '../../../lib/config';
-import { readPage, savePageDirect, ContentRequestError } from '../../../lib/content-repository';
+import { readPage, savePageDirect, deletePageDirect, ContentRequestError } from '../../../lib/content-repository';
 import { createGitHubClient } from '../../../lib/github';
 import { json, type PagesHandler } from '../../../lib/runtime';
 
@@ -44,6 +44,16 @@ export const onRequest: PagesHandler<AdminEnv> = async ({ request, env, params }
           changeId: input.changeId,
         }),
       );
+    }
+    if (request.method === 'DELETE') {
+      requireSameOrigin(request);
+      let input: { expectedRevision?: unknown; confirmation?: unknown };
+      try { input = await request.json() as typeof input; }
+      catch { return json({ code: 'invalid_content', message: 'The request body must be valid JSON.' }, 400); }
+      if (typeof input.expectedRevision !== 'string' || typeof input.confirmation !== 'string') {
+        return json({ code: 'invalid_content', message: 'Expected revision and confirmation are required.' }, 400);
+      }
+      return json(await deletePageDirect(client, config, slug, { expectedRevision: input.expectedRevision, confirmation: input.confirmation }));
     }
     return json({ code: 'unavailable', message: 'Method not allowed.' }, 405);
   } catch (error) {

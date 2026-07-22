@@ -276,6 +276,13 @@ Responses use `no-store`; refreshing the website fetches the latest content and
 replaces the static fallback using safe DOM APIs. Only registered block types
 are rendered.
 
+Gate 4 adds optional `globals/reusable-blocks.json` and
+`globals/media-library.json` collections. Existing content repositories do not
+need a manual migration: the protected editor treats a missing collection as
+empty and creates the content file plus its validation artifact on the first
+save. Reusable sources and media metadata remain content-only. Their schemas,
+resolution logic, admin UI, and renderers remain in the frontend repository.
+
 ### Multi-page publishing
 
 The protected `/api/admin/pages` endpoint lists and creates pages. Page files

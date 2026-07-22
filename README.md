@@ -1,9 +1,11 @@
 # Astro Boilerplate CMS Platform
 
-Gate 3 provides an end-to-end multi-page CMS: validated page creation,
+Gate 4 provides an end-to-end multi-page CMS: validated page creation,
 archive/restore lifecycle, page metadata and SEO, ordered page blocks, global
 settings, ordered navigation, direct Git-backed publishing, and runtime page
-refreshes without frontend deployments.
+refreshes without frontend deployments. It also adds registered responsive
+layouts, reusable blocks with controlled refinements, a structured detailed
+footer, media metadata, and guarded permanent deletion.
 
 ## Local repository pair
 
@@ -63,6 +65,10 @@ Follow [GitHub and Cloudflare Pages Setup](docs/GITHUB-CLOUDFLARE-SETUP.md) for
 the repository permissions, build settings, content checkout, token policy,
 secrets, and verification checklist. The token is used only by the protected
 remote editor; the public build does not require it.
+
+See [Gate 4 content composition](docs/GATE-4-CONTENT-COMPOSITION.md) for the
+detailed footer, registered layouts, reusable-block workflow, media metadata,
+and permanent-deletion safeguards.
 
 ## Contributing and security
 

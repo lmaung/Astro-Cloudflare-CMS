@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { heroDefinition } from './hero/hero.definition';
 import { richTextDefinition } from './rich-text/rich-text.definition';
+import { contentGridDefinition } from './content-grid/content-grid.definition';
 
-export const blockDefinitions = [heroDefinition, richTextDefinition] as const;
+export const blockDefinitions = [heroDefinition, richTextDefinition, contentGridDefinition] as const;
 
 export const blockDefinitionByType = new Map(
   blockDefinitions.map((definition) => [definition.type, definition]),

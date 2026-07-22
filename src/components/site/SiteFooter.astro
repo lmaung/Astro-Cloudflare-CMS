@@ -1,0 +1,27 @@
+---
+import type { SiteSettings } from '../../domain/globals';
+
+interface Props { settings: SiteSettings }
+const { settings } = Astro.props;
+const { footer } = settings;
+const background = footer.appearance.variant === 'image' && footer.appearance.backgroundImage
+  ? `background-image: url(${JSON.stringify(footer.appearance.backgroundImage)})`
+  : undefined;
+---
+
+<footer class={`site-footer site-footer--${footer.appearance.variant} site-footer--overlay-${footer.appearance.overlay}`} style={background}>
+  <div class="site-shell site-footer__content">
+    <div class="site-footer__brand">
+      <a href="/" class="site-footer__name">{settings.siteName}</a>
+      {footer.summary && <p>{footer.summary}</p>}
+      {footer.supportingImages.length > 0 && <div class="site-footer__images">{footer.supportingImages.map((image) => image.href ? <a href={image.href}><img src={image.src} alt={image.alt} loading="lazy" /></a> : <img src={image.src} alt={image.alt} loading="lazy" />)}</div>}
+    </div>
+    {footer.columns.map((column) => <section class="site-footer__column" aria-labelledby={`footer-${column.id}`}><h2 id={`footer-${column.id}`}>{column.title}</h2><ul>{column.links.map((link) => <li><a href={link.href}>{link.label}</a></li>)}</ul></section>)}
+    {footer.newsletter.enabled && <section class="site-footer__newsletter" aria-labelledby="footer-newsletter"><h2 id="footer-newsletter">{footer.newsletter.heading}</h2>{footer.newsletter.description && <p>{footer.newsletter.description}</p>}{footer.newsletter.actionHref && <a class="site-footer__action" href={footer.newsletter.actionHref}>{footer.newsletter.actionLabel}</a>}{footer.newsletter.privacyNote && <small>{footer.newsletter.privacyNote}</small>}</section>}
+  </div>
+  <div class="site-shell site-footer__meta">
+    <p>{footer.copyright}</p>
+    {footer.socialLinks.length > 0 && <nav aria-label="Social links"><ul>{footer.socialLinks.map((link) => <li><a href={link.href}>{link.label}</a></li>)}</ul></nav>}
+    {footer.legalLinks.length > 0 && <nav aria-label="Legal links"><ul>{footer.legalLinks.map((link) => <li><a href={link.href}>{link.label}</a></li>)}</ul></nav>}
+  </div>
+</footer>

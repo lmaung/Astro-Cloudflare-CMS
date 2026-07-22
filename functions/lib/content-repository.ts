@@ -1,6 +1,7 @@
 import { pageSchema, type PageDocument } from '../../src/domain/content';
 import { navigationSchema } from '../../src/domain/globals';
 import { validateBlock } from '../../src/components/blocks/registry';
+import { resolveReusableBlock, reusableLibrarySchema } from '../../src/domain/reusables';
 import type { AdminConfig } from './config';
 import { commitFilesToMain, GitHubApiError, type GitHubClient } from './github';
 
@@ -44,6 +45,23 @@ async function assertPageIsNotInNavigation(client: GitHubClient, config: AdminCo
   }
 }
 
+async function assertPageHasNoReusableDependencies(client: GitHubClient, config: AdminConfig, slug: string) {
+  try {
+    const files = await client.request<GitHubContent[]>(`/contents/reusables?ref=${encodeURIComponent(config.contentBranch)}`);
+    for (const file of files.filter((item) => item.type === 'file' && item.name?.endsWith('.json'))) {
+      const reusable = await client.request<GitHubContent>(`/contents/reusables/${encodeURIComponent(file.name!)}?ref=${encodeURIComponent(config.contentBranch)}`);
+      const source = decodeBase64(reusable.content);
+      if (source.includes(`\"/${slug}\"`) || source.includes(`\"/${slug}/\"`)) {
+        throw new ContentRequestError('change_conflict', `Reusable content “${file.name}” still links to this page. Remove that dependency before deleting it.`);
+      }
+    }
+  } catch (error) {
+    if (error instanceof ContentRequestError) throw error;
+    if (error instanceof GitHubApiError && error.status === 404) return;
+    throw new ContentRequestError('unavailable', 'Reusable-content dependencies could not be checked. The page was not deleted.');
+  }
+}
+
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -57,6 +75,22 @@ function validatePage(value: unknown, expectedSlug: string): PageDocument {
     return page;
   } catch (error) {
     throw new ContentRequestError('invalid_content', `Content validation failed: ${String(error)}`);
+  }
+}
+
+async function validateReusableInstances(client: GitHubClient, config: AdminConfig, page: PageDocument) {
+  const linked = page.blocks.filter((block) => block.reusable);
+  if (!linked.length) return;
+  let library;
+  try { const file = await client.request<GitHubContent>(`/contents/globals/reusable-blocks.json?ref=${encodeURIComponent(config.contentBranch)}`); library = reusableLibrarySchema.parse(JSON.parse(decodeBase64(file.content))); }
+  catch { throw new ContentRequestError('invalid_content', 'Reusable block references cannot be resolved. Save the reusable library first.'); }
+  for (const block of linked) {
+    const source = library.blocks.find((entry) => entry.id === block.reusable?.sourceId);
+    if (!source || source.type !== block.type) throw new ContentRequestError('invalid_content', `Reusable source “${block.reusable?.sourceId}” is missing or has a different block type.`);
+    const invalidField = Object.keys(block.reusable?.overrides ?? {}).find((field) => !source.refinableFields.includes(field as never));
+    if (invalidField) throw new ContentRequestError('invalid_content', `Field “${invalidField}” is not refinable for reusable source “${source.name}”.`);
+    try { validateBlock(block.type, resolveReusableBlock(block, library).content); }
+    catch (error) { throw new ContentRequestError('invalid_content', `Reusable block validation failed: ${String(error)}`); }
   }
 }
 
@@ -115,6 +149,7 @@ export async function createPageDirect(client: GitHubClient, config: AdminConfig
   try { candidate = pageSchema.parse(input.data); }
   catch (error) { throw new ContentRequestError('invalid_content', `Content validation failed: ${String(error)}`); }
   const page = validatePage(candidate, candidate.slug);
+  await validateReusableInstances(client, config, page);
   if (page.slug === 'admin' || page.slug === 'api') throw new ContentRequestError('unsafe_path', 'This slug is reserved by the platform.');
   const branch = await client.request<{ object: { sha: string } }>(`/git/ref/heads/${encodeURIComponent(config.contentBranch)}`);
   if (branch.object.sha !== input.expectedRevision) throw new ContentRequestError('stale_revision', 'The page collection changed after it was loaded. Reload before creating a page.');
@@ -140,6 +175,7 @@ export async function createPageDirect(client: GitHubClient, config: AdminConfig
 export async function savePageDirect(client: GitHubClient, config: AdminConfig, slug: string, input: { data: unknown; expectedRevision: string; changeId: string }) {
   const changeId = requireChangeId(input.changeId);
   const page = validatePage(input.data, slug);
+  await validateReusableInstances(client, config, page);
   if (slug === 'home' && page.status === 'archived') throw new ContentRequestError('invalid_content', 'The home page cannot be archived.');
   const current = await readPage(client, config, slug);
   if (current.revision !== input.expectedRevision) throw new ContentRequestError('stale_revision', 'Published content changed after this editor was loaded. Reload before saving.');
@@ -154,5 +190,27 @@ export async function savePageDirect(client: GitHubClient, config: AdminConfig, 
   } catch (error) {
     if (error instanceof ContentRequestError) throw error;
     throw new ContentRequestError('unavailable', 'GitHub could not save the content. No frontend deployment was triggered.');
+  }
+}
+
+export async function deletePageDirect(client: GitHubClient, config: AdminConfig, slug: string, input: { expectedRevision: string; confirmation: string }) {
+  if (slug === 'home') throw new ContentRequestError('invalid_content', 'The home page cannot be permanently deleted.');
+  const current = await readPage(client, config, slug);
+  if (current.revision !== input.expectedRevision) throw new ContentRequestError('stale_revision', 'The page changed after this editor was loaded. Reload before deleting it.');
+  if (current.data.status !== 'archived') throw new ContentRequestError('invalid_content', 'Archive this page before permanently deleting it.');
+  if (input.confirmation.trim() !== current.data.slug && input.confirmation.trim() !== current.data.title) {
+    throw new ContentRequestError('invalid_content', `Type “${current.data.slug}” or the exact page title to confirm permanent deletion.`);
+  }
+  await assertPageIsNotInNavigation(client, config, slug);
+  await assertPageHasNoReusableDependencies(client, config, slug);
+  try {
+    const saved = await commitFilesToMain(client, config.contentBranch, `Delete ${current.data.title}`, [
+      { path: pagePath(slug), delete: true },
+      { path: validationPath(slug), delete: true },
+    ]);
+    return { deleted: true as const, slug, collectionRevision: saved.commit, mode: 'remote' as const, submission: { kind: 'direct_save' as const } };
+  } catch (error) {
+    if (error instanceof ContentRequestError) throw error;
+    throw new ContentRequestError('unavailable', 'GitHub could not delete the page. No content was changed.');
   }
 }

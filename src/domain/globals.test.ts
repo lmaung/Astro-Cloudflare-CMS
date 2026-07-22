@@ -14,4 +14,11 @@ describe('global content schemas', () => {
     expect(navigationSchema.parse({ primary }).primary).toHaveLength(20);
     expect(() => navigationSchema.parse({ primary: [...primary, { label: 'Too many', href: '/too-many' }] })).toThrow();
   });
+  it('supports structured detailed footer content and rejects unsafe links', () => {
+    const base = { siteName: 'Example', tagline: 'A useful site.', defaultSeo: { titleSuffix: 'Example', description: 'Description' } };
+    const settings = siteSettingsSchema.parse({ ...base, footer: { copyright: '© Example', summary: 'About the organization.', columns: [{ id: 'resources', title: 'Resources', links: [{ label: 'About', href: '/about' }] }], socialLinks: [{ label: 'LinkedIn', href: 'https://www.linkedin.com/' }], appearance: { variant: 'dark', overlay: 'medium' } } });
+    expect(settings.footer.columns[0]?.links[0]?.href).toBe('/about');
+    expect(settings.footer.newsletter.enabled).toBe(false);
+    expect(() => siteSettingsSchema.parse({ ...base, footer: { copyright: '© Example', legalLinks: [{ label: 'Unsafe', href: 'javascript:alert(1)' }] } })).toThrow();
+  });
 });

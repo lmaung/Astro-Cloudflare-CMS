@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { heroDefinition } from '../../src/components/blocks/hero/hero.definition';
 import type { AdminConfig } from './config';
-import { ContentRequestError, createPageDirect, listPages, savePageDirect } from './content-repository';
+import { ContentRequestError, createPageDirect, deletePageDirect, listPages, savePageDirect } from './content-repository';
 import { GitHubApiError, type GitHubClient } from './github';
 
 const config: AdminConfig = { accessTeamDomain: 'https://example.cloudflareaccess.com', accessAudience: 'audience', githubToken: 'token', contentOwner: 'owner', contentRepo: 'content-only', contentBranch: 'main' };
 const changeId = '12345678-1234-4123-8123-123456789abc';
 const page = { id: 'page-home', slug: 'home', status: 'published' as const, title: 'Home', seo: { title: '', description: '' }, blocks: [{ id: 'hero', type: heroDefinition.type, status: 'active' as const, content: heroDefinition.defaults() }] };
-const encoded = (value = page) => btoa(JSON.stringify(value));
+const encoded = (value: unknown = page) => btoa(JSON.stringify(value));
 
 function directSaveClient(current = page) {
   const calls: Array<{ path: string; init: RequestInit | undefined }> = []; let blobs = 0;
@@ -85,5 +85,38 @@ describe('direct page publishing', () => {
     });
     const result = await listPages({ request } as GitHubClient, config);
     expect(result).toMatchObject({ revision: 'commit-main', data: [{ slug: 'home', status: 'published' }] });
+  });
+
+  it('permanently deletes an archived page and its validation artifact atomically', async () => {
+    const archived = { ...page, id: 'page-about', slug: 'about', title: 'About', status: 'archived' as const };
+    const calls: Array<{ path: string; init: RequestInit | undefined }> = [];
+    const request = vi.fn(async (path: string, init?: RequestInit) => {
+      calls.push({ path, init });
+      if (path === '/contents/pages/about.json?ref=main') return { content: encoded(archived), encoding: 'base64', sha: 'about-old' };
+      if (path === '/contents/globals/navigation.json?ref=main') return { content: btoa(JSON.stringify({ primary: [{ label: 'Home', href: '/' }] })), encoding: 'base64', sha: 'nav' };
+      if (path === '/contents/reusables?ref=main') throw new GitHubApiError(404, 'missing');
+      if (path === '/git/ref/heads/main') return { object: { sha: 'commit-main' } };
+      if (path === '/git/commits/commit-main') return { tree: { sha: 'tree-main' } };
+      if (path === '/git/trees') return { sha: 'tree-new' };
+      if (path === '/git/commits') return { sha: 'commit-new' };
+      if (path === '/git/refs/heads/main') return {};
+      throw new Error(`Unexpected request: ${path}`);
+    });
+    const result = await deletePageDirect({ request } as GitHubClient, config, 'about', { expectedRevision: 'about-old', confirmation: 'about' });
+    expect(result).toMatchObject({ deleted: true, slug: 'about', collectionRevision: 'commit-new' });
+    const tree = JSON.parse(String(calls.find((call) => call.path === '/git/trees')?.init?.body)).tree;
+    expect(tree).toEqual([
+      { path: 'pages/about.json', mode: '100644', type: 'blob', sha: null },
+      { path: '_validation/pages/about.json', mode: '100644', type: 'blob', sha: null },
+    ]);
+    expect(calls.filter((call) => call.path === '/git/blobs')).toHaveLength(0);
+  });
+
+  it('rejects permanent deletion until the page is archived and confirmed', async () => {
+    const { client } = directSaveClient();
+    await expect(deletePageDirect(client, config, 'home', { expectedRevision: 'blob-old', confirmation: 'home' })).rejects.toMatchObject({ code: 'invalid_content' });
+    const published = { ...page, id: 'page-about', slug: 'about', title: 'About' };
+    const request = vi.fn(async () => ({ content: encoded(published), encoding: 'base64', sha: 'about-old' }));
+    await expect(deletePageDirect({ request } as GitHubClient, config, 'about', { expectedRevision: 'about-old', confirmation: 'about' })).rejects.toMatchObject({ code: 'invalid_content' });
   });
 });

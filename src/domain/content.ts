@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { reusableInstanceSchema } from './reusables';
 
 export const blockStatusSchema = z.enum(['active', 'hidden']).default('active');
 
@@ -15,6 +16,7 @@ export const blockEnvelopeSchema = z.object({
   type: z.string().min(1),
   status: blockStatusSchema,
   content: z.unknown(),
+  reusable: reusableInstanceSchema.optional(),
 });
 
 export const pageSchema = z.object({

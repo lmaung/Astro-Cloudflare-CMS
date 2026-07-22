@@ -41,13 +41,19 @@ export function createGitHubClient(config: AdminConfig) {
   };
 }
 
-export async function commitFilesToMain(client: GitHubClient, branch: string, message: string, files: Array<{ path: string; content: string }>, expectedHead?: string) {
+export type GitTreeChange = { path: string; content: string } | { path: string; delete: true };
+
+export async function commitFilesToMain(client: GitHubClient, branch: string, message: string, files: GitTreeChange[], expectedHead?: string) {
   const base = await client.request<{ object: { sha: string } }>(`/git/ref/heads/${encodeURIComponent(branch)}`);
   if (expectedHead && base.object.sha !== expectedHead) throw new Error('The branch changed after it was loaded.');
   const baseCommit = await client.request<{ tree?: { sha: string } }>(`/git/commits/${encodeURIComponent(base.object.sha)}`);
   if (!baseCommit.tree?.sha) throw new Error('GitHub returned an incomplete base commit.');
   const treeEntries = []; const revisions: Record<string, string> = {};
   for (const file of files) {
+    if ('delete' in file) {
+      treeEntries.push({ path: file.path, mode: '100644', type: 'blob', sha: null });
+      continue;
+    }
     const blob = await client.request<{ sha: string }>('/git/blobs', { method: 'POST', body: JSON.stringify({ content: file.content, encoding: 'utf-8' }) });
     revisions[file.path] = blob.sha;
     treeEntries.push({ path: file.path, mode: '100644', type: 'blob', sha: blob.sha });

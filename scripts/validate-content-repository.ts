@@ -4,6 +4,7 @@ import path from 'node:path';
 import { validateBlock } from '../src/components/blocks/registry';
 import { pageSchema } from '../src/domain/content';
 import { navigationSchema, siteSettingsSchema } from '../src/domain/globals';
+import { reusableLibrarySchema, resolveReusableBlock } from '../src/domain/reusables';
 
 type ValidationArtifact = {
   schemaVersion: string;
@@ -32,6 +33,9 @@ async function validate() {
 
   siteSettingsSchema.parse(await readJson(path.join(contentRoot, 'globals', 'site-settings.json')));
   const navigation = navigationSchema.parse(await readJson(path.join(contentRoot, 'globals', 'navigation.json')));
+  let reusables = reusableLibrarySchema.parse({ blocks: [] });
+  try { reusables = reusableLibrarySchema.parse(await readJson(path.join(contentRoot, 'globals', 'reusable-blocks.json'))); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   const pages = [];
   const ids = new Set<string>();
 
@@ -42,7 +46,10 @@ async function validate() {
     if (page.slug !== expectedSlug) throw new Error(`${file} must have slug "${expectedSlug}".`);
     if (ids.has(page.id)) throw new Error(`Duplicate page id: ${page.id}.`);
     ids.add(page.id); pages.push(page);
-    page.blocks.forEach((block) => validateBlock(block.type, block.content));
+    page.blocks.forEach((block) => {
+      if (block.reusable && !reusables.blocks.some((entry) => entry.id === block.reusable?.sourceId && entry.type === block.type)) throw new Error(`${file} references missing or mismatched reusable block ${block.reusable.sourceId}.`);
+      validateBlock(block.type, resolveReusableBlock(block, reusables).content);
+    });
 
     const artifactFile = path.join(contentRoot, '_validation', 'pages', file);
     try {

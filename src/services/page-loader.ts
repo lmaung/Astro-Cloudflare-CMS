@@ -3,6 +3,7 @@ import { heroDefinition } from '../components/blocks/hero/hero.definition';
 import { richTextDefinition } from '../components/blocks/rich-text/rich-text.definition';
 import type { PageDocument } from '../domain/content';
 import { navigationSchema, siteSettingsSchema, type Navigation, type SiteSettings } from '../domain/globals';
+import { resolveReusableBlock, reusableLibrarySchema } from '../domain/reusables';
 import { LocalFilesystemProvider } from '../providers/local-filesystem';
 
 const fallbackPage: PageDocument = {
@@ -27,7 +28,10 @@ export async function loadHomePage(): Promise<PageDocument> {
     process.env.CONTENT_REPO_PATH ?? path.join(process.cwd(), '..', 'astro-boilerplate-cms-content'),
   );
   try {
-    return (await new LocalFilesystemProvider(contentRoot).readPage('home')).data;
+    const provider = new LocalFilesystemProvider(contentRoot);
+    const page = (await provider.readPage('home')).data;
+    const library = reusableLibrarySchema.parse((await provider.readGlobal('reusable-blocks')).data);
+    return { ...page, blocks: page.blocks.map((block) => resolveReusableBlock(block, library)) };
   } catch {
     return fallbackPage;
   }
@@ -37,7 +41,7 @@ const fallbackSettings: SiteSettings = {
   siteName: 'Astro CMS',
   tagline: 'Structured content for modern websites.',
   defaultSeo: { titleSuffix: 'Astro CMS', description: 'Reusable Git-backed CMS platform built with Astro.' },
-  footer: { copyright: '© 2026 Astro CMS' },
+  footer: { copyright: '© 2026 Astro CMS', columns: [], socialLinks: [], legalLinks: [], supportingImages: [], newsletter: { enabled: false, heading: 'Stay informed', description: '', actionLabel: 'Subscribe', privacyNote: '' }, appearance: { variant: 'light', overlay: 'medium' } },
 };
 
 const fallbackNavigation: Navigation = { primary: [{ label: 'Home', href: '/' }, { label: 'Content', href: '#content' }] };

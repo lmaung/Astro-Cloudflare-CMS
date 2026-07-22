@@ -5,7 +5,7 @@ import { LocalFilesystemProvider } from './local-filesystem';
 
 const pagePattern = /^\/api\/admin\/content\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 const pagesEndpoint = '/api/admin/pages';
-const globalPattern = /^\/api\/admin\/globals\/(site-settings|navigation)$/;
+const globalPattern = /^\/api\/admin\/globals\/(site-settings|navigation|reusable-blocks|media-library)$/;
 
 function send(response: import('node:http').ServerResponse, status: number, body: unknown): void {
   response.statusCode = status;
@@ -42,7 +42,7 @@ export function localContentPlugin(): Plugin {
         if (!pageMatch && request.url !== pagesEndpoint && !globalMatch) return next();
         try {
           if (globalMatch) {
-            const key = globalMatch[1] as 'site-settings' | 'navigation';
+            const key = globalMatch[1] as 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library';
             if (request.method === 'GET') return send(response, 200, { ...(await provider.readGlobal(key)), mode: 'local' });
             if (request.method === 'PUT') {
               const payload = (await readJson(request)) as { data?: unknown; expectedRevision?: unknown };
@@ -78,6 +78,11 @@ export function localContentPlugin(): Plugin {
               { ...(await provider.writePage(payload.data as never, payload.expectedRevision)), mode: 'local' },
             );
             return;
+          }
+          if (request.method === 'DELETE') {
+            const payload = (await readJson(request)) as { expectedRevision?: unknown; confirmation?: unknown };
+            if (typeof payload.expectedRevision !== 'string' || typeof payload.confirmation !== 'string') return send(response, 400, { code: 'invalid_content', message: 'Expected revision and confirmation are required.' });
+            return send(response, 200, { ...(await provider.deletePage(slug, payload.expectedRevision, payload.confirmation)), mode: 'local' });
           }
           send(response, 405, { code: 'unavailable', message: 'Method not allowed.' });
         } catch (error) {

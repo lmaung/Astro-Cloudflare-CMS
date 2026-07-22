@@ -8,7 +8,7 @@ import { json, type PagesHandler } from '../../../lib/runtime';
 export const onRequest: PagesHandler<AdminEnv> = async ({ request, env, params }) => {
   try {
     const config = readAdminConfig(env); await verifyCloudflareAccess(request, config);
-    const key = params.key; if (key !== 'site-settings' && key !== 'navigation') return json({ code: 'unsafe_path', message: 'Unsupported global content key.' }, 400);
+    const key = params.key; if (key !== 'site-settings' && key !== 'navigation' && key !== 'reusable-blocks' && key !== 'media-library') return json({ code: 'unsafe_path', message: 'Unsupported global content key.' }, 400);
     const client = createGitHubClient(config);
     if (request.method === 'GET') return json(await readGlobal(client, config, key));
     if (request.method === 'PUT') { requireSameOrigin(request); const body = await request.json() as { data?: unknown; expectedRevision?: unknown; changeId?: unknown }; if (typeof body.expectedRevision !== 'string' || typeof body.changeId !== 'string') return json({ code: 'invalid_content', message: 'Expected revision and change identifier are required.' }, 400); return json(await saveGlobalDirect(client, config, key, { data: body.data, expectedRevision: body.expectedRevision, changeId: body.changeId })); }

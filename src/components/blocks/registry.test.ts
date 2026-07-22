@@ -13,4 +13,11 @@ describe('block registry', () => {
   it('rejects unknown blocks', () => {
     expect(() => validateBlock('unknown/block', {})).toThrow('Unknown block type');
   });
+
+  it('validates registered responsive content grids', () => {
+    const definition = blockDefinitions.find((item) => item.type === 'core/content-grid');
+    expect(definition).toBeDefined();
+    expect(() => validateBlock('core/content-grid', definition!.defaults())).not.toThrow();
+    expect(() => validateBlock('core/content-grid', { ...definition!.defaults(), layout: 'arbitrary-css-grid' })).toThrow();
+  });
 });

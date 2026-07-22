@@ -47,6 +47,10 @@ export class GitHubContentProvider implements ContentReader, ContentWriter {
     throw new ProviderError('unavailable', 'Page creation is provided by the deployed admin gateway.');
   }
 
+  async deletePage(): Promise<{ deleted: true; slug: string; collectionRevision: string }> {
+    throw new ProviderError('unavailable', 'Page deletion is provided by the deployed admin gateway.');
+  }
+
   async writePage(page: PageDocument, expectedRevision: string): Promise<Versioned<PageDocument>> {
     const current = await this.readPage(page.slug);
     if (current.revision !== expectedRevision) {

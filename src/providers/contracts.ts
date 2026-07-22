@@ -33,4 +33,5 @@ export interface ContentReader {
 export interface ContentWriter {
   writePage(page: PageDocument, expectedRevision: Revision): Promise<Versioned<PageDocument>>;
   createPage(page: PageDocument, expectedRevision: Revision): Promise<Versioned<PageDocument> & { collectionRevision: Revision }>;
+  deletePage(slug: string, expectedRevision: Revision, confirmation: string): Promise<{ deleted: true; slug: string; collectionRevision: Revision }>;
 }

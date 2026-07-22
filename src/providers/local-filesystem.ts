@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
-import { access, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { access, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { pageSchema, type PageDocument } from '../domain/content';
 import { navigationSchema, siteSettingsSchema } from '../domain/globals';
+import { reusableLibrarySchema } from '../domain/reusables';
+import { mediaLibrarySchema } from '../domain/media';
 import { validateBlock } from '../components/blocks/registry';
 import {
   ProviderError,
@@ -102,17 +104,30 @@ export class LocalFilesystemProvider implements ContentReader, ContentWriter {
     return { data: validated, revision: revisionFor(serialized) };
   }
 
-  async readGlobal(key: 'site-settings' | 'navigation'): Promise<Versioned<unknown>> {
+  async deletePage(slug: string, expectedRevision: string, confirmation: string) {
+    const current = await this.readPage(slug);
+    if (slug === 'home') throw new ProviderError('invalid_content', 'The home page cannot be permanently deleted.');
+    if (current.revision !== expectedRevision) throw new ProviderError('stale_revision', 'The page changed after it was loaded. Reload before deleting it.');
+    if (current.data.status !== 'archived') throw new ProviderError('invalid_content', 'Archive this page before permanently deleting it.');
+    if (confirmation.trim() !== slug && confirmation.trim() !== current.data.title) throw new ProviderError('invalid_content', `Type “${slug}” or the exact page title to confirm permanent deletion.`);
+    await unlink(this.pagePath(slug));
+    const collection = await this.listPages();
+    return { deleted: true as const, slug, collectionRevision: collection.revision };
+  }
+
+  async readGlobal(key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library'): Promise<Versioned<unknown>> {
     await this.verifyManifest();
-    const source = await readFile(path.join(this.root, 'globals', `${key}.json`), 'utf8');
-    const schema = key === 'site-settings' ? siteSettingsSchema : navigationSchema;
+    let source: string;
+    try { source = await readFile(path.join(this.root, 'globals', `${key}.json`), 'utf8'); }
+    catch (error) { if ((key === 'reusable-blocks' || key === 'media-library') && (error as NodeJS.ErrnoException).code === 'ENOENT') return { data: key === 'reusable-blocks' ? { blocks: [] } : { assets: [] }, revision: revisionFor('') }; throw error; }
+    const schema = key === 'site-settings' ? siteSettingsSchema : key === 'navigation' ? navigationSchema : key === 'reusable-blocks' ? reusableLibrarySchema : mediaLibrarySchema;
     return { data: schema.parse(JSON.parse(source)), revision: revisionFor(source) };
   }
 
-  async writeGlobal(key: 'site-settings' | 'navigation', data: unknown, expectedRevision: string): Promise<Versioned<unknown>> {
+  async writeGlobal(key: 'site-settings' | 'navigation' | 'reusable-blocks' | 'media-library', data: unknown, expectedRevision: string): Promise<Versioned<unknown>> {
     const current = await this.readGlobal(key);
     if (current.revision !== expectedRevision) throw new ProviderError('stale_revision', 'Global content changed after it was loaded. Reload before saving.');
-    const schema = key === 'site-settings' ? siteSettingsSchema : navigationSchema;
+    const schema = key === 'site-settings' ? siteSettingsSchema : key === 'navigation' ? navigationSchema : key === 'reusable-blocks' ? reusableLibrarySchema : mediaLibrarySchema;
     const validated = schema.parse(data);
     const serialized = `${JSON.stringify(validated, null, 2)}\n`;
     const destination = path.join(this.root, 'globals', `${key}.json`);

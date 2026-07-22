@@ -1,5 +1,5 @@
 import type { PageDocument } from '../domain/content';
-import type { PageListResponse, PageResponse } from './types';
+import type { DeletePageResponse, PageListResponse, PageResponse } from './types';
 import type { GlobalResponse } from './types';
 
 type ApiError = { code?: string; message?: string };
@@ -53,4 +53,12 @@ export async function savePage(
       body: JSON.stringify({ data, expectedRevision, changeId }),
     }),
   );
+}
+
+export async function deletePage(slug: string, expectedRevision: string, confirmation: string): Promise<DeletePageResponse> {
+  return parseResponse<DeletePageResponse>(await fetch(`/api/admin/content/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expectedRevision, confirmation }),
+  }));
 }

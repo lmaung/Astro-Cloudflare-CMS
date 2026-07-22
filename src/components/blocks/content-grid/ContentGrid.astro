@@ -1,0 +1,21 @@
+---
+import type { ContentGrid as ContentGridContent } from './content-grid.schema';
+interface Props { content: ContentGridContent }
+const { content } = Astro.props;
+---
+
+<section class={`site-grid-section site-grid-section--${content.surface} site-grid-section--${content.spacing} site-grid-section--align-${content.alignment}`} aria-labelledby={`grid-${content.heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
+  <div class="site-shell">
+    <header class="site-section-heading">
+      {content.eyebrow && <p class="site-eyebrow">{content.eyebrow}</p>}
+      <h2 id={`grid-${content.heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>{content.heading}</h2>
+      {content.introduction && <p>{content.introduction}</p>}
+    </header>
+    <div class={`site-content-grid site-content-grid--${content.layout}`}>
+      {content.items.map((item) => <article class={content.layout === 'card-grid' ? 'site-content-card' : 'site-content-item'}>
+        {item.image && <img src={item.image.src} alt={item.image.alt} loading="lazy" />}
+        <div><h3>{item.heading}</h3><p>{item.body}</p>{item.action && <a href={item.action.href}>{item.action.label}</a>}</div>
+      </article>)}
+    </div>
+  </div>
+</section>
