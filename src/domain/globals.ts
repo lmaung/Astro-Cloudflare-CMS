@@ -10,7 +10,7 @@ export const siteSettingsSchema = z.object({
 });
 
 export const navigationSchema = z.object({
-  primary: z.array(z.object({ label: z.string().min(1).max(40), href: safeHref })).max(8),
+  primary: z.array(z.object({ label: z.string().min(1).max(40), href: safeHref })).max(20),
 });
 
 export type SiteSettings = z.infer<typeof siteSettingsSchema>;

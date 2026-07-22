@@ -8,7 +8,9 @@ import { LocalFilesystemProvider } from '../providers/local-filesystem';
 const fallbackPage: PageDocument = {
   id: 'page-home',
   slug: 'home',
+  status: 'published',
   title: 'Astro Boilerplate CMS',
+  seo: { title: '', description: '' },
   blocks: [
     { id: 'hero-home', type: heroDefinition.type, status: 'active', content: heroDefinition.defaults() },
     {

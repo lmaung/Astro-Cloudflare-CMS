@@ -1,5 +1,5 @@
 import type { PageDocument } from '../domain/content';
-import type { PageResponse } from './types';
+import type { PageListResponse, PageResponse } from './types';
 import type { GlobalResponse } from './types';
 
 type ApiError = { code?: string; message?: string };
@@ -29,8 +29,16 @@ export async function saveGlobal(key: string, data: unknown, expectedRevision: s
   return parseResponse<GlobalResponse>(await fetch(`/api/admin/globals/${key}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data, expectedRevision, changeId }) }));
 }
 
-export async function loadPage(): Promise<PageResponse> {
-  return parseResponse<PageResponse>(await fetch('/api/admin/content/home', { cache: 'no-store' }));
+export async function loadPages(): Promise<PageListResponse> {
+  return parseResponse<PageListResponse>(await fetch('/api/admin/pages', { cache: 'no-store' }));
+}
+
+export async function createPage(data: PageDocument, expectedRevision: string, changeId: string): Promise<PageResponse> {
+  return parseResponse<PageResponse>(await fetch('/api/admin/pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data, expectedRevision, changeId }) }));
+}
+
+export async function loadPage(slug: string): Promise<PageResponse> {
+  return parseResponse<PageResponse>(await fetch(`/api/admin/content/${encodeURIComponent(slug)}`, { cache: 'no-store' }));
 }
 
 export async function savePage(
@@ -39,7 +47,7 @@ export async function savePage(
   changeId: string,
 ): Promise<PageResponse> {
   return parseResponse<PageResponse>(
-    await fetch('/api/admin/content/home', {
+    await fetch(`/api/admin/content/${encodeURIComponent(data.slug)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data, expectedRevision, changeId }),

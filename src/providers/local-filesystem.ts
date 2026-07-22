@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { access, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { pageSchema, type PageDocument } from '../domain/content';
@@ -60,6 +60,30 @@ export class LocalFilesystemProvider implements ContentReader, ContentWriter {
       if (error instanceof ProviderError) throw error;
       throw new ProviderError('invalid_content', `Unable to read page: ${String(error)}`);
     }
+  }
+
+  async listPages(): Promise<Versioned<Array<Pick<PageDocument, 'id' | 'slug' | 'status' | 'title'>>>> {
+    await this.verifyManifest();
+    const names = (await readdir(path.join(this.root, 'pages'))).filter((name) => name.endsWith('.json')).sort();
+    const sources = await Promise.all(names.map((name) => readFile(path.join(this.root, 'pages', name), 'utf8')));
+    const pages = sources.map((source) => pageSchema.parse(JSON.parse(source)));
+    return {
+      data: pages.map(({ id, slug, status, title }) => ({ id, slug, status, title })).sort((a, b) => a.title.localeCompare(b.title)),
+      revision: revisionFor(sources.join('\n')),
+    };
+  }
+
+  async createPage(page: PageDocument, expectedRevision: string): Promise<Versioned<PageDocument> & { collectionRevision: string }> {
+    const current = await this.listPages();
+    if (current.revision !== expectedRevision) throw new ProviderError('stale_revision', 'The page collection changed after it was loaded. Reload before creating a page.');
+    const validated = pageSchema.parse(page);
+    validated.blocks.forEach((block) => validateBlock(block.type, block.content));
+    const destination = this.pagePath(validated.slug);
+    try { await access(destination); throw new ProviderError('invalid_content', `A page already uses the slug “${validated.slug}”.`); }
+    catch (error) { if (error instanceof ProviderError) throw error; }
+    const serialized = `${JSON.stringify(validated, null, 2)}\n`;
+    await writeFile(destination, serialized, { encoding: 'utf8', flag: 'wx' });
+    return { data: validated, revision: revisionFor(serialized), collectionRevision: revisionFor(`${current.revision}\n${serialized}`) };
   }
 
   async writePage(page: PageDocument, expectedRevision: string): Promise<Versioned<PageDocument>> {

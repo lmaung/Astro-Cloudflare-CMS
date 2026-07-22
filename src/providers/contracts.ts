@@ -27,8 +27,10 @@ export class ProviderError extends Error {
 
 export interface ContentReader {
   readPage(slug: string): Promise<Versioned<PageDocument>>;
+  listPages(): Promise<Versioned<Array<Pick<PageDocument, 'id' | 'slug' | 'status' | 'title'>>>>;
 }
 
 export interface ContentWriter {
   writePage(page: PageDocument, expectedRevision: Revision): Promise<Versioned<PageDocument>>;
+  createPage(page: PageDocument, expectedRevision: Revision): Promise<Versioned<PageDocument> & { collectionRevision: Revision }>;
 }

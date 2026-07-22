@@ -2,6 +2,14 @@ import { z } from 'zod';
 
 export const blockStatusSchema = z.enum(['active', 'hidden']).default('active');
 
+export const pageStatusSchema = z.enum(['published', 'archived']).default('published');
+
+export const pageSlugSchema = z
+  .string()
+  .min(1)
+  .max(80)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers, and single hyphens.');
+
 export const blockEnvelopeSchema = z.object({
   id: z.string().min(1),
   type: z.string().min(1),
@@ -11,8 +19,13 @@ export const blockEnvelopeSchema = z.object({
 
 export const pageSchema = z.object({
   id: z.string().min(1),
-  slug: z.string().min(1),
-  title: z.string().min(1),
+  slug: pageSlugSchema,
+  status: pageStatusSchema,
+  title: z.string().min(1).max(120),
+  seo: z.object({
+    title: z.string().max(120).default(''),
+    description: z.string().max(200).default(''),
+  }).default({ title: '', description: '' }),
   blocks: z.array(blockEnvelopeSchema),
 });
 

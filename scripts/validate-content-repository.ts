@@ -31,13 +31,17 @@ async function validate() {
   if (pageFiles.length === 0) throw new Error('The content repository must contain at least one pages/*.json file.');
 
   siteSettingsSchema.parse(await readJson(path.join(contentRoot, 'globals', 'site-settings.json')));
-  navigationSchema.parse(await readJson(path.join(contentRoot, 'globals', 'navigation.json')));
+  const navigation = navigationSchema.parse(await readJson(path.join(contentRoot, 'globals', 'navigation.json')));
+  const pages = [];
+  const ids = new Set<string>();
 
   for (const file of pageFiles) {
     const source = await readFile(path.join(pagesDirectory, file), 'utf8');
     const page = pageSchema.parse(JSON.parse(source));
     const expectedSlug = file.slice(0, -'.json'.length);
     if (page.slug !== expectedSlug) throw new Error(`${file} must have slug "${expectedSlug}".`);
+    if (ids.has(page.id)) throw new Error(`Duplicate page id: ${page.id}.`);
+    ids.add(page.id); pages.push(page);
     page.blocks.forEach((block) => validateBlock(block.type, block.content));
 
     const artifactFile = path.join(contentRoot, '_validation', 'pages', file);
@@ -54,6 +58,15 @@ async function validate() {
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+
+  const home = pages.find((page) => page.slug === 'home');
+  if (!home || home.status !== 'published') throw new Error('The home page must exist and remain published.');
+  const publishedRoutes = new Set(pages.filter((page) => page.status === 'published').map((page) => page.slug === 'home' ? '/' : `/${page.slug}`));
+  for (const item of navigation.primary) {
+    if (item.href.startsWith('/') && !publishedRoutes.has(item.href.replace(/\/$/, '') || '/')) {
+      throw new Error(`Navigation link “${item.label}” does not point to a published page.`);
     }
   }
 

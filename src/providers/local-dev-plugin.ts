@@ -3,7 +3,8 @@ import type { Plugin } from 'vite';
 import { ProviderError } from './contracts';
 import { LocalFilesystemProvider } from './local-filesystem';
 
-const endpoint = '/api/admin/content/home';
+const pagePattern = /^\/api\/admin\/content\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
+const pagesEndpoint = '/api/admin/pages';
 const globalPattern = /^\/api\/admin\/globals\/(site-settings|navigation)$/;
 
 function send(response: import('node:http').ServerResponse, status: number, body: unknown): void {
@@ -37,7 +38,8 @@ export function localContentPlugin(): Plugin {
 
       server.middlewares.use(async (request, response, next) => {
         const globalMatch = request.url?.match(globalPattern);
-        if (request.url !== endpoint && !globalMatch) return next();
+        const pageMatch = request.url?.match(pagePattern);
+        if (!pageMatch && request.url !== pagesEndpoint && !globalMatch) return next();
         try {
           if (globalMatch) {
             const key = globalMatch[1] as 'site-settings' | 'navigation';
@@ -49,8 +51,19 @@ export function localContentPlugin(): Plugin {
             }
             return send(response, 405, { code: 'unavailable', message: 'Method not allowed.' });
           }
+          if (request.url === pagesEndpoint) {
+            if (request.method === 'GET') return send(response, 200, { ...(await provider.listPages()), mode: 'local' });
+            if (request.method === 'POST') {
+              const payload = (await readJson(request)) as { data?: unknown; expectedRevision?: unknown };
+              if (typeof payload.expectedRevision !== 'string') return send(response, 400, { code: 'invalid_content', message: 'Expected revision is required.' });
+              return send(response, 201, { ...(await provider.createPage(payload.data as never, payload.expectedRevision)), mode: 'local' });
+            }
+            return send(response, 405, { code: 'unavailable', message: 'Method not allowed.' });
+          }
+          const slug = pageMatch?.[1];
+          if (!slug) return next();
           if (request.method === 'GET') {
-            send(response, 200, { ...(await provider.readPage('home')), mode: 'local' });
+            send(response, 200, { ...(await provider.readPage(slug)), mode: 'local' });
             return;
           }
           if (request.method === 'PUT') {

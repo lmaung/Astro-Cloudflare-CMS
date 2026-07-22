@@ -4,10 +4,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { loadHomePage, loadNavigation, loadSiteSettings } from '../services/page-loader';
 
 const [page, settings, navigation] = await Promise.all([loadHomePage(), loadSiteSettings(), loadNavigation()]);
-const title = `${page.title} · ${settings.defaultSeo.titleSuffix}`;
+const title = `${page.seo.title || page.title} · ${settings.defaultSeo.titleSuffix}`;
+const description = page.seo.description || settings.defaultSeo.description;
 ---
 
-<BaseLayout title={title} description={settings.defaultSeo.description}>
+<BaseLayout title={title} description={description}>
   <header class="site-header">
     <div class="site-shell site-header__inner">
       <a class="site-brand" href="/" aria-label={`${settings.siteName} home`}>{settings.siteName}</a>
@@ -23,15 +24,20 @@ const title = `${page.title} · ${settings.defaultSeo.titleSuffix}`;
   <script>
     type RuntimeLink = { label: string; href: string };
     type RuntimeBlock = { status: string; type: string; content: Record<string, any> };
-    type RuntimeSnapshot = { page: { title: string; blocks: RuntimeBlock[] }; settings: { siteName: string; tagline: string; defaultSeo: { titleSuffix: string; description: string }; footer: { copyright: string } }; navigation: { primary: RuntimeLink[] } };
+    type RuntimeSnapshot = { page: { title: string; seo: { title: string; description: string }; blocks: RuntimeBlock[] }; settings: { siteName: string; tagline: string; defaultSeo: { titleSuffix: string; description: string }; footer: { copyright: string } }; navigation: { primary: RuntimeLink[] } };
     const safeHref = (value: unknown): value is string => typeof value === 'string' && (value.startsWith('/') || value.startsWith('#') || value.startsWith('https://'));
-    fetch('/api/content/snapshot', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<RuntimeSnapshot> : Promise.reject()).then(({ page, settings, navigation }) => {
+    const routeSlug = location.pathname.replace(/^\/+|\/+$/g, '') || 'home';
+    fetch(`/api/content/snapshot?slug=${encodeURIComponent(routeSlug)}`, { cache: 'no-store' }).then(async (response) => {
+      if (response.ok) return response.json() as Promise<RuntimeSnapshot>;
+      if (response.status === 404) throw new Error('not_found');
+      throw new Error('unavailable');
+    }).then(({ page, settings, navigation }) => {
       const brand = document.querySelector('.site-brand'); if (brand) { brand.textContent = settings.siteName; brand.setAttribute('aria-label', `${settings.siteName} home`); }
-      document.title = `${page.title} · ${settings.defaultSeo.titleSuffix}`;
-      const description = document.querySelector('meta[name="description"]'); if (description) description.setAttribute('content', settings.defaultSeo.description);
-      const list = document.querySelector('.site-navigation ul'); if (list) { list.replaceChildren(...navigation.primary.filter((item) => safeHref(item.href)).map((item) => { const li = document.createElement('li'); const link = document.createElement('a'); link.textContent = item.label; link.href = item.href; li.append(link); return li; })); }
+      document.title = `${page.seo.title || page.title} · ${settings.defaultSeo.titleSuffix}`;
+      const description = document.querySelector('meta[name="description"]'); if (description) description.setAttribute('content', page.seo.description || settings.defaultSeo.description);
+      const list = document.querySelector('.site-navigation ul'); if (list) { list.replaceChildren(...navigation.primary.filter((item) => safeHref(item.href)).map((item) => { const li = document.createElement('li'); const link = document.createElement('a'); link.textContent = item.label; link.href = item.href; if (new URL(link.href, location.origin).pathname === location.pathname) link.setAttribute('aria-current', 'page'); li.append(link); return li; })); }
       const main = document.querySelector('[data-runtime-content]'); if (main) { const blocks = page.blocks.filter((block) => block.status === 'active').map((block) => { if (block.type === 'core/hero') { const section = document.createElement('section'); section.className = 'site-hero'; section.setAttribute('aria-labelledby', 'hero-heading'); const inner = document.createElement('div'); inner.className = 'site-shell site-hero__inner'; const eyebrow = document.createElement('p'); eyebrow.className = 'site-eyebrow'; eyebrow.textContent = block.content.eyebrow || ''; const heading = document.createElement('h1'); heading.id = 'hero-heading'; heading.textContent = block.content.heading; const body = document.createElement('p'); body.className = 'site-hero__body'; body.textContent = block.content.body; inner.append(eyebrow, heading, body); if (block.content.action && safeHref(block.content.action.href)) { const action = document.createElement('a'); action.className = 'site-action'; action.href = block.content.action.href; action.textContent = block.content.action.label; inner.append(action); } section.append(inner); return section; } if (block.type === 'core/rich-text') { const section = document.createElement('section'); section.className = 'site-section'; section.id = 'content'; const inner = document.createElement('div'); inner.className = 'site-shell site-prose'; const heading = document.createElement('h2'); heading.textContent = block.content.heading; inner.append(heading, ...block.content.paragraphs.map((text: string) => { const p = document.createElement('p'); p.textContent = text; return p; })); section.append(inner); return section; } return null; }).filter((block): block is HTMLElement => block !== null); main.replaceChildren(...blocks); }
       const footer = document.querySelector('.site-footer .site-shell'); if (footer) { const copyright = document.createElement('p'); copyright.textContent = settings.footer.copyright; const tagline = document.createElement('p'); tagline.textContent = settings.tagline; footer.replaceChildren(copyright, tagline); }
-    }).catch(() => { /* Keep the validated static fallback when runtime content is unavailable. */ });
+    }).catch((error) => { if (error instanceof Error && error.message === 'not_found' && routeSlug !== 'home') { document.title = 'Page not found'; const main = document.querySelector('[data-runtime-content]'); if (main) { const section = document.createElement('section'); section.className = 'site-section'; const inner = document.createElement('div'); inner.className = 'site-shell site-prose'; const heading = document.createElement('h1'); heading.textContent = 'Page not found'; const body = document.createElement('p'); body.textContent = 'The requested page does not exist or is no longer published.'; const link = document.createElement('a'); link.className = 'site-action'; link.href = '/'; link.textContent = 'Return home'; inner.append(heading, body, link); section.append(inner); main.replaceChildren(section); } } /* Keep the validated static fallback when runtime services are unavailable. */ });
   </script>
 </BaseLayout>

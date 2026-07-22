@@ -17,18 +17,17 @@ export type Catalog = {
 
 export type EditorMode = 'local' | 'remote';
 
-export type PullRequestSubmission = {
-  kind: 'pull_request' | 'direct_save';
-  number?: number;
-  url?: string;
-  branch?: string;
-};
+export type SaveSubmission = { kind: 'direct_save' };
 
-export type GlobalResponse = { data: unknown; revision: string; mode: EditorMode; submission?: PullRequestSubmission };
+export type GlobalResponse = { data: unknown; revision: string; mode: EditorMode; submission?: SaveSubmission };
 
 export type PageResponse = {
   data: PageDocument;
   revision: string;
   mode: EditorMode;
-  submission?: PullRequestSubmission;
+  collectionRevision?: string;
+  submission?: SaveSubmission;
 };
+
+export type PageSummary = Pick<PageDocument, 'id' | 'slug' | 'status' | 'title'>;
+export type PageListResponse = { data: PageSummary[]; revision: string; mode: EditorMode };

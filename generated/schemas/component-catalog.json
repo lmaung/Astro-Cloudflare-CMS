@@ -172,7 +172,7 @@
         "type": "object",
         "properties": {
           "primary": {
-            "maxItems": 8,
+            "maxItems": 20,
             "type": "array",
             "items": {
               "type": "object",

@@ -6,12 +6,14 @@ on:
     paths:
       - 'content-manifest.json'
       - 'pages/**'
+      - 'globals/**'
       - '_validation/**'
   push:
     branches: [main]
     paths:
       - 'content-manifest.json'
       - 'pages/**'
+      - 'globals/**'
       - '_validation/**'
 
 permissions:

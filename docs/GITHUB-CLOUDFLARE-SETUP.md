@@ -269,10 +269,28 @@ The commit contains the edited JSON plus its `_validation` artifact. A concurren
 branch advance fails safely instead of overwriting newer work. It never writes
 to the frontend repository and never calls a Cloudflare deploy hook.
 
-The public `/api/content/snapshot` endpoint returns validated page, settings,
-and navigation data without exposing the GitHub credential. Responses use
-`no-store`; refreshing the website fetches the latest content and replaces the
-static fallback using safe DOM APIs. Only registered block types are rendered.
+The public `/api/content/snapshot?slug=<page-slug>` endpoint returns the
+requested validated published page, settings, and navigation data without
+exposing the GitHub credential. Archived and missing pages return `404`.
+Responses use `no-store`; refreshing the website fetches the latest content and
+replaces the static fallback using safe DOM APIs. Only registered block types
+are rendered.
+
+### Multi-page publishing
+
+The protected `/api/admin/pages` endpoint lists and creates pages. Page files
+remain under `pages/<slug>.json`; the slug is permanent after creation. A new
+page is published immediately but remains unlisted until its URL is added to
+`globals/navigation.json` through the Navigation editor.
+
+Navigation order controls menu order. Internal navigation links are accepted
+only when they resolve to published pages. Before archiving a page, remove its
+navigation entries and save Navigation. The home page cannot be archived.
+
+Cloudflare Pages serves the root static document as its default SPA fallback
+for a path without a built asset. The browser derives the slug from the current
+pathname and requests the matching runtime snapshot. This allows a new page URL
+to work without rebuilding or redeploying the frontend.
 
 Never put secrets under `vars` in a committed Wrangler file. Local secrets must
 use an ignored `.dev.vars` file; `.dev.vars*` and `.env*` are ignored by this
@@ -345,6 +363,14 @@ After configuration, verify:
 - [ ] `/admin*` and `/api/admin/*` require Cloudflare Access.
 - [ ] The CMS token can access only the content repository.
 - [ ] A CMS save creates one commit directly on the content branch.
+- [ ] Creating a page adds `pages/<slug>.json` and its validation artifact in
+      one commit.
+- [ ] A newly created page opens at `/<slug>` after refresh without a frontend
+      deployment.
+- [ ] Navigation rejects a link to a missing or archived page.
+- [ ] A referenced page cannot be archived until its navigation entry is
+      removed.
+- [ ] The home page cannot be archived.
 - [ ] The commit changes only the edited JSON and its validation artifact.
 - [ ] Refreshing the public website displays the newly saved content.
 - [ ] A CMS content save does not create a frontend commit or Pages deployment.

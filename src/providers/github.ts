@@ -39,6 +39,14 @@ export class GitHubContentProvider implements ContentReader, ContentWriter {
     }
   }
 
+  async listPages(): Promise<Versioned<Array<Pick<PageDocument, 'id' | 'slug' | 'status' | 'title'>>>> {
+    throw new ProviderError('unavailable', 'Page listing is provided by the deployed admin gateway.');
+  }
+
+  async createPage(): Promise<Versioned<PageDocument> & { collectionRevision: string }> {
+    throw new ProviderError('unavailable', 'Page creation is provided by the deployed admin gateway.');
+  }
+
   async writePage(page: PageDocument, expectedRevision: string): Promise<Versioned<PageDocument>> {
     const current = await this.readPage(page.slug);
     if (current.revision !== expectedRevision) {

@@ -4,6 +4,8 @@ dist/
 .wrangler/
 .DS_Store
 coverage/
+test-results/
+playwright-report/
 *.log
 .env
 .env.*

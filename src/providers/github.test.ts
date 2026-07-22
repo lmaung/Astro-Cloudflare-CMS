@@ -5,7 +5,9 @@ import { GitHubContentProvider, type GitHubTransport } from './github';
 const page = {
   id: 'page-home',
   slug: 'home',
+  status: 'published' as const,
   title: 'Fixture',
+  seo: { title: '', description: '' },
   blocks: [{ id: 'hero', type: heroDefinition.type, status: 'active' as const, content: heroDefinition.defaults() }],
 };
 

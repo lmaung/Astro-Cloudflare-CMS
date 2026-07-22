@@ -1,8 +1,9 @@
 # Astro Boilerplate CMS Platform
 
-Gate 1 implements a small end-to-end slice of the approved architecture: a
-static Astro page, Hero and Rich Text block definitions, a generated schema
-catalog, a React/RJSF local editor, and a validated local filesystem provider.
+Gate 3 provides an end-to-end multi-page CMS: validated page creation,
+archive/restore lifecycle, page metadata and SEO, ordered page blocks, global
+settings, ordered navigation, direct Git-backed publishing, and runtime page
+refreshes without frontend deployments.
 
 ## Local repository pair
 
@@ -22,6 +23,7 @@ repository must contain `content-manifest.json` and `pages/home.json`.
 - `npm run dev` — run the public site and development-only local editor
 - `npm run check` — regenerate and verify types/generated artifacts
 - `npm test` — run schema and provider tests
+- `npm run test:e2e` — run desktop/mobile browser workflows and axe checks
 - `npm run build` — create the static production site
 - `npm run build:pages` — fetch the sibling content repository and build on
   Cloudflare Pages
@@ -34,10 +36,26 @@ fine-grained GitHub token scoped only to the content repository. Validated data
 is committed atomically to the content branch with its validation artifact. The
 frontend repository is never modified and Cloudflare is not redeployed.
 
-The public site keeps its static build as a resilient fallback, then fetches the
-latest validated content through a read-only Pages Function on each refresh.
-Registered blocks, ordering, visibility, navigation, and settings can therefore
-change without a frontend build; executable application code remains frontend-only.
+The public site keeps its static home build as a resilient fallback, then
+fetches the requested slug's latest validated content through a read-only Pages
+Function on each refresh. Cloudflare Pages' static SPA fallback lets newly
+created slugs resolve through the existing deployment. Registered blocks,
+ordering, visibility, navigation, page metadata, and settings can therefore
+change without a frontend build; executable application code remains
+frontend-only.
+
+## Page lifecycle
+
+- **Create and publish:** Pages receive a permanent safe slug and an initial
+  registered block. Add their URL to Navigation when they should appear in the
+  primary menu.
+- **Edit:** Page title, SEO fields, block content, block visibility, and block
+  order are schema validated before a direct content commit.
+- **Remove:** Pages are archived, not erased. The home page cannot be archived,
+  and navigation references must be removed before another page is archived.
+- **Restore:** Archived pages can be published again from the Pages workspace.
+- **Reorder:** Navigation array order controls menu order; it does not control
+  page identity or prevent unlisted landing pages.
 
 ## Deployment setup
 

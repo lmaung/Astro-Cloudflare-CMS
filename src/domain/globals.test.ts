@@ -9,4 +9,9 @@ describe('global content schemas', () => {
   it('rejects executable navigation URLs', () => {
     expect(() => navigationSchema.parse({ primary: [{ label: 'Bad', href: 'javascript:alert(1)' }] })).toThrow();
   });
+  it('supports a bounded multi-page primary navigation', () => {
+    const primary = Array.from({ length: 20 }, (_, index) => ({ label: `Page ${index + 1}`, href: `/page-${index + 1}` }));
+    expect(navigationSchema.parse({ primary }).primary).toHaveLength(20);
+    expect(() => navigationSchema.parse({ primary: [...primary, { label: 'Too many', href: '/too-many' }] })).toThrow();
+  });
 });

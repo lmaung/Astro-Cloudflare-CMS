@@ -41,8 +41,9 @@ export function createGitHubClient(config: AdminConfig) {
   };
 }
 
-export async function commitFilesToMain(client: GitHubClient, branch: string, message: string, files: Array<{ path: string; content: string }>) {
+export async function commitFilesToMain(client: GitHubClient, branch: string, message: string, files: Array<{ path: string; content: string }>, expectedHead?: string) {
   const base = await client.request<{ object: { sha: string } }>(`/git/ref/heads/${encodeURIComponent(branch)}`);
+  if (expectedHead && base.object.sha !== expectedHead) throw new Error('The branch changed after it was loaded.');
   const baseCommit = await client.request<{ tree?: { sha: string } }>(`/git/commits/${encodeURIComponent(base.object.sha)}`);
   if (!baseCommit.tree?.sha) throw new Error('GitHub returned an incomplete base commit.');
   const treeEntries = []; const revisions: Record<string, string> = {};
