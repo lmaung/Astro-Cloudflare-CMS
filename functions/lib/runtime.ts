@@ -14,6 +14,8 @@ export function json(body: unknown, status = 200): Response {
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
+      'X-Frame-Options': 'DENY',
+      'Permissions-Policy': 'camera=(), geolocation=(), microphone=()',
     },
   });
 }

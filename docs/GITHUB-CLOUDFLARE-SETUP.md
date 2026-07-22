@@ -267,12 +267,64 @@ Then:
 
 A remote save validates the content again on the server, checks the expected
 blob revision, creates an isolated `cms/<change-id>` branch, and opens a draft
-pull request against the content repository. It never writes to the frontend
-repository and never calls a Cloudflare deploy hook.
+pull request against the content repository. The bounded commit contains the
+page plus `_validation/pages/<slug>.json`, which records the validated content
+digest and idempotent change identifier. Retrying the same request returns the
+same PR; reusing its identifier for different content is rejected. It never
+writes to the frontend repository and never calls a Cloudflare deploy hook.
 
 Never put secrets under `vars` in a committed Wrangler file. Local secrets must
 use an ignored `.dev.vars` file; `.dev.vars*` and `.env*` are ignored by this
 repository.
+
+### Content pull-request validation
+
+Install `docs/templates/content-validation.yml` from the platform repository as
+`.github/workflows/validate-content.yml` in the content repository. The workflow
+checks out both repositories and runs the platform-owned validator against the
+content checkout. The content repository contains workflow configuration and
+generated validation artifacts, but no application or validation logic.
+
+After the platform changes containing `npm run validate:content` are on `main`,
+require the **Validate content / validate** check in the content repository's
+`main` ruleset. Do not make the check required before the workflow has completed
+successfully at least once.
+
+### Rate limiting and operational logs
+
+Cloudflare Access remains the authorization boundary. Add a zone rate-limiting
+rule for remote writes as defense in depth:
+
+```text
+starts_with(http.request.uri.path, "/api/admin/") and http.request.method eq "PUT"
+```
+
+Start with 10 requests per minute per source IP and a one-minute block or
+managed challenge, then tune from Security Analytics. Keep GET requests outside
+this write limit so the editor remains usable. Cloudflare rate limits are
+eventually enforced and are not an exact transaction counter.
+
+The Function emits structured failure events containing only method, safe slug,
+error class, and domain error code. View them under the Pages deployment's
+Function logs. These events intentionally exclude tokens, request bodies,
+content, Access assertions, and user identity.
+
+### Manual paired-revision preview
+
+Automatic deployment from a content save is intentionally disabled. To inspect
+a content PR against an exact frontend revision without changing that policy:
+
+1. Record the frontend commit SHA to test.
+2. Record the content PR head SHA.
+3. Locally check out the frontend SHA and run the Pages build with
+   `CONTENT_REF=<content-pr-sha> npm run build:pages`; or temporarily set the
+   trusted preview environment's `CONTENT_REF` to the content PR SHA and start a
+   deliberate preview deployment.
+4. Record both SHAs with the test result.
+5. Restore the preview environment's normal `CONTENT_REF` after testing.
+
+Never trigger this preview from the CMS save endpoint and never modify the
+frontend repository merely to start it.
 
 ## 7. Verification checklist
 
@@ -292,7 +344,13 @@ After configuration, verify:
 - [ ] `/admin*` and `/api/admin/*` require Cloudflare Access.
 - [ ] The CMS token can access only the content repository.
 - [ ] A CMS save creates a draft pull request in the content repository.
+- [ ] The content PR changes only the page and its generated validation artifact.
+- [ ] The content validation workflow passes on the draft PR.
+- [ ] Retrying the same change identifier returns the original PR.
+- [ ] Reusing the identifier for different content is rejected.
 - [ ] A CMS content save does not create a frontend commit or Pages deployment.
+- [ ] A write-only rate limit covers `/api/admin/*` PUT requests.
+- [ ] Function failure logs contain no secrets, content, assertions, or identity.
 - [ ] The GitHub PAT is encrypted in Cloudflare and absent from both repositories.
 - [ ] Production admin/API routes are protected by Cloudflare Access before
       remote writes are enabled.
@@ -346,6 +404,10 @@ not sufficient.
   https://developers.cloudflare.com/pages/configuration/build-image/
 - Cloudflare Pages secrets and bindings:
   https://developers.cloudflare.com/pages/functions/bindings/
+- Cloudflare Pages Function logs:
+  https://developers.cloudflare.com/pages/functions/debugging-and-logging/
+- Cloudflare rate limiting rules:
+  https://developers.cloudflare.com/waf/rate-limiting-rules/
 - Cloudflare Access JWT validation:
   https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/
 - Cloudflare Access application paths:

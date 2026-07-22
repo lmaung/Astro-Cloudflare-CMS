@@ -14,6 +14,7 @@
     "check": "npm run generate:check && astro check && tsc --noEmit",
     "generate": "tsx scripts/generate-component-catalog.ts",
     "generate:check": "npm run generate && git diff --exit-code -- generated",
+    "validate:content": "tsx scripts/validate-content-repository.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

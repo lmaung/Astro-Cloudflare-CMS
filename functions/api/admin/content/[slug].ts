@@ -6,7 +6,7 @@ import { json, type PagesHandler } from '../../../lib/runtime';
 
 function statusFor(error: ContentRequestError): number {
   if (error.code === 'not_found') return 404;
-  if (error.code === 'stale_revision') return 409;
+  if (error.code === 'change_conflict' || error.code === 'stale_revision') return 409;
   if (error.code === 'invalid_content' || error.code === 'unsafe_path') return 422;
   return 503;
 }
@@ -47,6 +47,16 @@ export const onRequest: PagesHandler<AdminEnv> = async ({ request, env, params }
     }
     return json({ code: 'unavailable', message: 'Method not allowed.' }, 405);
   } catch (error) {
+    const slug = typeof params.slug === 'string' ? params.slug : 'invalid';
+    console.error(
+      JSON.stringify({
+        event: 'admin_content_request_failed',
+        method: request.method,
+        slug,
+        errorType: error instanceof Error ? error.constructor.name : 'UnknownError',
+        errorCode: error instanceof ContentRequestError ? error.code : undefined,
+      }),
+    );
     if (error instanceof AuthorizationError) return json({ code: 'authorization_denied', message: error.message }, 403);
     if (error instanceof ConfigurationError) {
       return json({ code: 'dependency_unavailable', message: 'The remote editor is not configured yet.' }, 503);

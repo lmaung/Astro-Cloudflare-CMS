@@ -1,0 +1,44 @@
+name: Validate content
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'content-manifest.json'
+      - 'pages/**'
+      - '_validation/**'
+  push:
+    branches: [main]
+    paths:
+      - 'content-manifest.json'
+      - 'pages/**'
+      - '_validation/**'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out content
+        uses: actions/checkout@v4
+        with:
+          path: content
+      - name: Check out CMS validator
+        uses: actions/checkout@v4
+        with:
+          repository: lmaung/Astro-Cloudflare-CMS
+          path: platform
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: platform/.node-version
+          cache: npm
+          cache-dependency-path: platform/package-lock.json
+      - name: Install validator dependencies
+        run: npm ci
+        working-directory: platform
+      - name: Validate content repository
+        run: npm run validate:content -- ../content
+        working-directory: platform

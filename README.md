@@ -35,6 +35,10 @@ draft pull request there. They do not modify the frontend repository or trigger
 a Cloudflare Pages deployment; the published static site changes only after a
 deliberate frontend deployment.
 
+Each remote submission creates one bounded commit containing the edited page
+and its generated validation artifact. Content pull requests are checked with
+the platform-owned validator, and retries are idempotent.
+
 ## Deployment setup
 
 Follow [GitHub and Cloudflare Pages Setup](docs/GITHUB-CLOUDFLARE-SETUP.md) for

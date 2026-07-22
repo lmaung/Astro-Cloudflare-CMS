@@ -12,11 +12,15 @@ type PullRequest = { number: number; html_url: string };
 
 export class ContentRequestError extends Error {
   constructor(
-    readonly code: 'invalid_content' | 'not_found' | 'stale_revision' | 'unsafe_path' | 'unavailable',
+    readonly code: 'change_conflict' | 'invalid_content' | 'not_found' | 'stale_revision' | 'unsafe_path' | 'unavailable',
     message: string,
   ) {
     super(message);
   }
+}
+
+function validationPath(slug: string): string {
+  return `_validation/pages/${slug}.json`;
 }
 
 function pagePath(slug: string): string {
@@ -40,6 +44,11 @@ function encodeBase64(value: string): string {
   return btoa(binary);
 }
 
+async function sha256(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function validatePage(value: unknown, expectedSlug: string): PageDocument {
   try {
     const page = pageSchema.parse(value);
@@ -52,9 +61,13 @@ function validatePage(value: unknown, expectedSlug: string): PageDocument {
 }
 
 export async function readPage(client: GitHubClient, config: AdminConfig, slug: string) {
+  return readPageAtRef(client, slug, config.contentBranch);
+}
+
+async function readPageAtRef(client: GitHubClient, slug: string, ref: string) {
   try {
     const file = await client.request<GitHubContent>(
-      `/contents/${pagePath(slug)}?ref=${encodeURIComponent(config.contentBranch)}`,
+      `/contents/${pagePath(slug)}?ref=${encodeURIComponent(ref)}`,
     );
     if (file.encoding !== 'base64') throw new ContentRequestError('unavailable', 'GitHub returned unsupported content encoding.');
     return { data: validatePage(JSON.parse(decodeBase64(file.content)), slug), revision: file.sha, mode: 'remote' as const };
@@ -110,6 +123,13 @@ export async function submitPagePullRequest(
   const branch = `cms/${input.changeId.toLowerCase()}`;
   try {
     await client.request<GitReference>(`/git/ref/heads/${encodeURIComponent(branch)}`);
+    const branchPage = await readPageAtRef(client, slug, branch);
+    if (JSON.stringify(branchPage.data) !== JSON.stringify(page)) {
+      throw new ContentRequestError(
+        'change_conflict',
+        'This change identifier already belongs to different content. Reload before submitting again.',
+      );
+    }
     const existing = (await findPullRequest(client, config, branch)) ?? (await createPullRequest(client, config, branch, page));
     return {
       data: page,
@@ -133,11 +153,28 @@ export async function submitPagePullRequest(
       method: 'POST',
       body: JSON.stringify({ content: encodeBase64(serialized), encoding: 'base64' }),
     });
+    const validation = `${JSON.stringify(
+      {
+        schemaVersion: '1',
+        page: slug,
+        contentDigest: await sha256(serialized),
+        changeId: input.changeId.toLowerCase(),
+      },
+      null,
+      2,
+    )}\n`;
+    const validationBlob = await client.request<GitBlob>('/git/blobs', {
+      method: 'POST',
+      body: JSON.stringify({ content: encodeBase64(validation), encoding: 'base64' }),
+    });
     const tree = await client.request<GitTree>('/git/trees', {
       method: 'POST',
       body: JSON.stringify({
         base_tree: baseCommit.tree.sha,
-        tree: [{ path: pagePath(slug), mode: '100644', type: 'blob', sha: blob.sha }],
+        tree: [
+          { path: pagePath(slug), mode: '100644', type: 'blob', sha: blob.sha },
+          { path: validationPath(slug), mode: '100644', type: 'blob', sha: validationBlob.sha },
+        ],
       }),
     });
     const commit = await client.request<GitCommit>('/git/commits', {

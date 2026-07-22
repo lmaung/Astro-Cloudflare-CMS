@@ -56,6 +56,11 @@ describe('content pull request submission', () => {
     expect(JSON.parse(String(pullCall?.init?.body))).toMatchObject({ base: 'main', draft: true });
     const treeCall = calls.find((call) => call.path === '/git/trees');
     expect(JSON.parse(String(treeCall?.init?.body))).toMatchObject({ base_tree: 'tree-main' });
+    expect(JSON.parse(String(treeCall?.init?.body)).tree.map((entry: { path: string }) => entry.path)).toEqual([
+      'pages/home.json',
+      '_validation/pages/home.json',
+    ]);
+    expect(calls.filter((call) => call.path === '/git/blobs')).toHaveLength(2);
     expect(calls.every((call) => !call.path.includes('deploy'))).toBe(true);
   });
 
@@ -84,6 +89,28 @@ describe('content pull request submission', () => {
       changeId: '12345678-1234-4123-8123-123456789abc',
     });
     expect(result.submission.number).toBe(8);
-    expect(request).toHaveBeenCalledTimes(3);
+    expect(request).toHaveBeenCalledTimes(4);
+  });
+
+  it('rejects reuse of a change identifier for different content', async () => {
+    const different = { ...page, title: 'Different content' };
+    const request = vi.fn(async (path: string) => {
+      if (path === '/contents/pages/home.json?ref=main') {
+        return { content: encodedPage(), encoding: 'base64', sha: 'blob-old' };
+      }
+      if (path.startsWith('/git/ref/heads/cms%2F')) return { object: { sha: 'commit-existing' } };
+      if (path.startsWith('/contents/pages/home.json?ref=cms%2F')) {
+        return { content: btoa(JSON.stringify(different)), encoding: 'base64', sha: 'blob-existing' };
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    await expect(
+      submitPagePullRequest({ request } as GitHubClient, config, 'home', {
+        data: page,
+        expectedRevision: 'blob-old',
+        changeId: '12345678-1234-4123-8123-123456789abc',
+      }),
+    ).rejects.toMatchObject({ code: 'change_conflict' } satisfies Partial<ContentRequestError>);
   });
 });
